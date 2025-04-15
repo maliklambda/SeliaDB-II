@@ -73,16 +73,12 @@ func (fh fileHandler) WriteColumnToFile (col types.Column_t, offset int64) error
         return err
     }
 
-    fmt.Println("Type start")
-    fmt.Println(fh.File.Seek(0, 1))
     err = binary.Write(fh.File, binary.LittleEndian, col.Type)
     if err != nil {
         fmt.Println("Error writing col type to file")
         fmt.Println(err)
         return err
     }
-    fmt.Println("Type end")
-    fmt.Println(fh.File.Seek(0, 1))
 
     err = binary.Write(fh.File, binary.LittleEndian, col.Size)
     if err != nil {

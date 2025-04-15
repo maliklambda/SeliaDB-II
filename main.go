@@ -5,13 +5,14 @@ import (
 
 	"github.com/MalikL2005/Go_DB/types"
     "github.com/MalikL2005/Go_DB/read_write"
+    "github.com/MalikL2005/Go_DB/entries"
 )
 
 
 func main (){
     col1 := types.Column_t {
         Name: "col1",
-        Type: types.INT,
+        Type: types.INT32,
         Size: 4,
     }
     col2 := types.Column_t {
@@ -44,5 +45,12 @@ func main (){
     fmt.Println(tb1)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
+    entries.AddEntry(&tb1, int32(1172837485), "EdosWhooo")
+    entries.AddEntry(&tb1, int32(10), "Delcos")
+    fmt.Println(tb1.Entries.Values)
+    err = entries.ReadEntry(tb1, 0)
+    if err != nil {
+        fmt.Println(err)
+    }
 }
 

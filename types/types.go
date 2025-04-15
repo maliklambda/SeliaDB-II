@@ -4,31 +4,36 @@ package types
 type Database_t struct {
     Name string
     Tables []Table_t
-    NumOfTables int16
+    NumOfTables uint16
 }
 
 
 type Table_t struct {
     Name string
-    NumOfColumns int32
+    NumOfColumns uint32
     Columns [] Column_t
-    Entries [] byte
+    Entries *Entries_t
 }
 
+
+type Entries_t struct {
+    NumOfEntries uint64
+    Values [][] byte
+}
 
 
 
 type Column_t struct {
     Name string
     Type Type_t
-    Size int16
+    Size uint16
 }
 
 
 type Type_t uint8
 
 const (
-    INT Type_t = iota
+    INT32 Type_t = iota
     VARCHAR 
     FLOAT 
     BOOL
@@ -36,7 +41,7 @@ const (
 )
 
 var typeNames = map[Type_t] string {
-    INT: "INTEGER",
+    INT32: "INT32",
     VARCHAR: "VARCHAR",
     FLOAT: "FLOAT",
     BOOL: "BOOL",
