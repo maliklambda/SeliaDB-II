@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/MalikL2005/Go_DB/types"
-	"github.com/MalikL2005/Go_DB/write"
+    "github.com/MalikL2005/Go_DB/read_write"
 )
 
 
@@ -22,12 +22,12 @@ func main (){
 
     tb1 := types.Table_t {
         Name: "tb1",
-        NumOfColumns: 1023,
+        NumOfColumns: 2,
         Columns: []types.Column_t{col1, col2},
     }
     fmt.Println(tb1.Columns)
     fmt.Println(tb1.Entries)
-    fh, err := write.OpenFile("test.bin")
+    fh, err := read_write.OpenFile("test.bin")
     if err != nil {
         fmt.Println(err)
         panic(1)
@@ -40,7 +40,9 @@ func main (){
     }
     tb2 := types.Table_t{}
     fh.ReadFromFile(&tb2, 0)
+    fmt.Print("TB1: ")
     fmt.Println(tb1)
+    fmt.Print("Read TB2: ")
     fmt.Println(tb2)
 }
 
