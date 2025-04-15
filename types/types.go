@@ -4,13 +4,13 @@ package types
 type Database_t struct {
     Name string
     Tables []Table_t
-    NumOfTables int
+    NumOfTables int16
 }
 
 
 type Table_t struct {
     Name string
-    NumOfColumns int64
+    NumOfColumns int32
     Columns [] Column_t
     Entries [] byte
 }
@@ -21,11 +21,11 @@ type Table_t struct {
 type Column_t struct {
     Name string
     Type Type_t
-    Size int
+    Size int16
 }
 
 
-type Type_t int
+type Type_t uint8
 
 const (
     INT Type_t = iota
