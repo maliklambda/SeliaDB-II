@@ -50,8 +50,22 @@ func (fh fileHandler) WriteTableToFile (tb *types.Table_t, offset int64) error {
         return err
     }
 
-    fh.File = f
+    offsetStartEntries, err := f.Seek(0, 1)
+    if err != nil {
+        return err
+    }
 
+    err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
+    if err != nil {
+        return err
+    }
+
+    err = binary.Write(f, binary.LittleEndian, tb.OffsetToLastEntry)
+    if err != nil {
+        return err
+    }
+
+    fh.File = f
     for _, col := range tb.Columns {
         offset, err := f.Seek(0,1)
         if err != nil {
@@ -61,6 +75,23 @@ func (fh fileHandler) WriteTableToFile (tb *types.Table_t, offset int64) error {
         fmt.Printf("Offset: %d\n", offset)
         fh.WriteColumnToFile(col, offset)
     }
+    pos, err := fh.File.Seek(0, 1)
+    if err != nil {
+        return err
+    }
+    fmt.Println("Offset to entry-start: ", pos)
+    tb.StartEntries += uint16(pos)
+
+    _, err = f.Seek(offsetStartEntries, 0)
+    if err != nil {
+        return err
+    }
+
+    err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
+    if err != nil {
+        return err
+    }
+
 
     return nil
 }
@@ -98,7 +129,7 @@ func WriteEntryToFile (tb *types.Table_t, filePath string, entry []byte) error {
     if err != nil {
         return err
     }
-    _, err = f.Seek(int64(tb.OffsetToLastEntry), 0)
+    _, err = f.Seek(int64(tb.OffsetToLastEntry) + int64(tb.StartEntries), 0)
     if err != nil {
         return err
     }
@@ -110,6 +141,50 @@ func WriteEntryToFile (tb *types.Table_t, filePath string, entry []byte) error {
 
     fmt.Println(tb.OffsetToLastEntry)
     fmt.Println("Wrote entry successfully")
+    return nil
+}
+
+
+
+func (fh fileHandler) UpdateOffsetLastEntry (offsetTable int64, newLastEntryOffset uint16) error {
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+
+    _, err = f.Seek(offsetTable, 0)
+    if err != nil {
+        return err
+    }
+
+    _, err = f.Seek(int64(binary.Size(uint32(1))), 1)
+    if err != nil {
+        return err
+    }
+
+    // Read table name
+    buf := make([]byte, 1)
+    for range types.MAX_COLUMN_NAME_LENGTH +1 {
+        _, err = f.Read(buf)
+        if err != nil {
+            return err
+        }
+        if buf[0] == 0 {
+            break
+        }
+    }
+
+    _, err = f.Seek(int64(binary.Size(uint16(1))), 1)
+    if err != nil {
+        return err
+    }
+
+    pos, _ := f.Seek(0, 1)
+    fmt.Println(pos)
+    err = binary.Write(f, binary.LittleEndian, newLastEntryOffset)
+    if err != nil {
+        return err
+    }
     return nil
 }
 

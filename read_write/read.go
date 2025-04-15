@@ -40,8 +40,16 @@ func (fh fileHandler) ReadFromFile (data any, offset int64) error {
         }
         tb.Name = string(bytes)
 
-        tb.Columns = make([]types.Column_t, tb.NumOfColumns)
+        err = binary.Read(f, binary.LittleEndian, &tb.StartEntries)
+        if err != nil {
+            return err
+        }
+        err = binary.Read(f, binary.LittleEndian, &tb.OffsetToLastEntry)
+        if err != nil {
+            return err
+        }
 
+        tb.Columns = make([]types.Column_t, tb.NumOfColumns)
         // read columns
         fmt.Println(tb.NumOfColumns)
         for i := range tb.NumOfColumns {

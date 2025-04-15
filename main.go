@@ -29,7 +29,6 @@ func main (){
     tb1 := types.Table_t {
         Name: "tb1",
         NumOfColumns: 3,
-        OffsetToLastEntry: 0,
         Columns: []types.Column_t{col1, col2, col3},
     }
     fmt.Println(len(tb1.Columns))
@@ -46,12 +45,6 @@ func main (){
         fmt.Println(err)
         panic(1)
     }
-    tb2 := types.Table_t{}
-    fh.ReadFromFile(&tb2, 0)
-    fmt.Print("TB1: ")
-    fmt.Println(tb1)
-    fmt.Print("Read TB2: ")
-    fmt.Println(tb2)
     err = entries.AddEntry(&tb1, int32(1172837485), "EdosWhooo", "edos@gmail.com")
     if err != nil {
         fmt.Println("Could not add entry", err)
@@ -60,10 +53,19 @@ func main (){
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
-    fmt.Println(tb1.Entries.Values)
-    err = entries.ReadEntry(tb1, 0)
+    err = entries.ReadEntry(tb1, 1)
     if err != nil {
         fmt.Println(err)
     }
+    tb2 := types.Table_t{}
+    fh.ReadFromFile(&tb2, 0)
+    fmt.Print("TB1: ")
+    fmt.Println(tb1)
+    fmt.Print("Read TB2: ")
+    fmt.Println(tb2)
+    fh.UpdateOffsetLastEntry(0, 5000)
+    fh.ReadFromFile(&tb2, 0)
+    fmt.Print("Read TB2: ")
+    fmt.Println(tb2)
 }
 

@@ -42,6 +42,7 @@ func AddEntry (tb *types.Table_t, values ... any) error {
 
 
 func ReadEntry (tb types.Table_t, index int) error {
+    fmt.Println("Reading entry")
     if tb.Entries == nil {
         return errors.New("Entries cannot be Nil")
     }

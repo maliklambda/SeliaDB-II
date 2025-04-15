@@ -9,10 +9,10 @@ type Database_t struct {
 
 
 type Table_t struct {
-    Name string
     NumOfColumns uint32
-    OffsetToLastEntry uint64
+    Name string
     StartEntries uint16
+    OffsetToLastEntry uint64
     Columns [] Column_t
     Entries *Entries_t
 }
@@ -53,6 +53,12 @@ var typeNames = map[Type_t] string {
 func (t Type_t) String() string {
     return typeNames[t]
 }
+
+
+const (
+    MAX_DATABASE_NAME_LENGTH = 20
+    MAX_COLUMN_NAME_LENGTH = 20
+)
 
 
 
