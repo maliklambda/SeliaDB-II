@@ -9,7 +9,7 @@ import (
 	"github.com/MalikL2005/Go_DB/types"
 )
 
-func (fh fileHandler) ReadFromFile (data any, offset int64) error {
+func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
     f, err := os.Open(fh.Path)
     if err != nil {
         return err

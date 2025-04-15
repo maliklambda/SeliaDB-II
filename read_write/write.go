@@ -9,26 +9,26 @@ import (
 
 
 
-type fileHandler struct {
+type FileHandler struct {
     Path string
     File *os.File
 }
 
 
 
-func OpenFile (fileName string) (fileHandler, error) {
+func OpenFile (fileName string) (FileHandler, error) {
     f, err := os.Create(fileName)
     if err != nil {
-        return fileHandler{}, err
+        return FileHandler{}, err
     }
     defer f.Close()
-    return fileHandler{fileName, nil}, nil
+    return FileHandler{fileName, nil}, nil
 }
 
 
 
 
-func (fh fileHandler) WriteTableToFile (tb *types.Table_t, offset int64) error {
+func (fh FileHandler) WriteTableToFile (tb *types.Table_t, offset int64) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
@@ -98,7 +98,7 @@ func (fh fileHandler) WriteTableToFile (tb *types.Table_t, offset int64) error {
 
 
 
-func (fh fileHandler) WriteColumnToFile (col types.Column_t, offset int64) error{
+func (fh FileHandler) WriteColumnToFile (col types.Column_t, offset int64) error{
     _, err := fh.File.Write([]byte(col.Name + "\000"))
     if err != nil {
         fmt.Println("Error writing col name to file")
@@ -122,10 +122,10 @@ func (fh fileHandler) WriteColumnToFile (col types.Column_t, offset int64) error
 }
 
 
-func WriteEntryToFile (tb *types.Table_t, filePath string, entry []byte) error {
+func WriteEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
     fmt.Println("Writing entry to file")
     fmt.Println(entry)
-    f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
@@ -141,12 +141,13 @@ func WriteEntryToFile (tb *types.Table_t, filePath string, entry []byte) error {
 
     fmt.Println(tb.OffsetToLastEntry)
     fmt.Println("Wrote entry successfully")
+    UpdateOffsetLastEntry(fh, 0, uint16(len(entry)))
     return nil
 }
 
 
 
-func (fh fileHandler) UpdateOffsetLastEntry (offsetTable int64, newLastEntryOffset uint16) error {
+func UpdateOffsetLastEntry (fh FileHandler, offsetTable int64, newLastEntryOffset uint16) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err

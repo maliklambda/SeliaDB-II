@@ -11,12 +11,12 @@ import (
 	"github.com/MalikL2005/Go_DB/types"
 )
 
-func AddEntry (tb *types.Table_t, values ... any) error {
+func AddEntry (tb *types.Table_t, fh read_write.FileHandler, values ... any) error {
     if tb.Entries == nil {
         tb.Entries = &types.Entries_t{}
     }
     var entry []byte
-    for i := range tb.NumOfColumns {
+    for i := range tb.NumOfColumns-1 {
         // fmt.Println(reflect.TypeOf(values[i]))
         s, ok := values[i].(string)
         if ok {
@@ -32,7 +32,7 @@ func AddEntry (tb *types.Table_t, values ... any) error {
     tb.Entries.Values = append(tb.Entries.Values, entry)
     tb.Entries.NumOfEntries ++
     fmt.Println(entry)
-    err := read_write.WriteEntryToFile(tb, "test.bin", entry)
+    err := read_write.WriteEntryToFile(tb, fh, entry)
     if err != nil {
         fmt.Println("Error writing entry to file", err)
         return err

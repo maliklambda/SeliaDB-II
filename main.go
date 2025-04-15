@@ -45,11 +45,11 @@ func main (){
         fmt.Println(err)
         panic(1)
     }
-    err = entries.AddEntry(&tb1, int32(1172837485), "EdosWhooo", "edos@gmail.com")
+    err = entries.AddEntry(&tb1, fh, "EdosWhooo", "edos@gmail.com")
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
-    err = entries.AddEntry(&tb1, int32(10), "Delcos", "delcos_2201@gmx.de")
+    err = entries.AddEntry(&tb1, fh, "Delcos", "delcos_2201@gmx.de")
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
@@ -58,13 +58,13 @@ func main (){
         fmt.Println(err)
     }
     tb2 := types.Table_t{}
-    fh.ReadFromFile(&tb2, 0)
+    fh.ReadTableFromFile(&tb2, 0)
     fmt.Print("TB1: ")
     fmt.Println(tb1)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
-    fh.UpdateOffsetLastEntry(0, 5000)
-    fh.ReadFromFile(&tb2, 0)
+    read_write.UpdateOffsetLastEntry(fh, 0, 5000)
+    fh.ReadTableFromFile(&tb2, 0)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
 }
