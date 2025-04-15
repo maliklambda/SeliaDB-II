@@ -20,12 +20,19 @@ func main (){
         Type: types.VARCHAR,
         Size: 255,
     }
+    col3 := types.Column_t {
+        Name: "email",
+        Type: types.VARCHAR,
+        Size: 100,
+    }
 
     tb1 := types.Table_t {
         Name: "tb1",
-        NumOfColumns: 2,
-        Columns: []types.Column_t{col1, col2},
+        NumOfColumns: 3,
+        OffsetToLastEntry: 0,
+        Columns: []types.Column_t{col1, col2, col3},
     }
+    fmt.Println(len(tb1.Columns))
     fmt.Println(tb1.Columns)
     fmt.Println(tb1.Entries)
     fh, err := read_write.OpenFile("test.bin")
@@ -34,7 +41,7 @@ func main (){
         panic(1)
     }
 
-    err = fh.WriteTableToFile(tb1, 0)
+    err = fh.WriteTableToFile(&tb1, 0)
     if err != nil {
         fmt.Println(err)
         panic(1)
@@ -45,8 +52,14 @@ func main (){
     fmt.Println(tb1)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
-    entries.AddEntry(&tb1, int32(1172837485), "EdosWhooo")
-    entries.AddEntry(&tb1, int32(10), "Delcos")
+    err = entries.AddEntry(&tb1, int32(1172837485), "EdosWhooo", "edos@gmail.com")
+    if err != nil {
+        fmt.Println("Could not add entry", err)
+    }
+    err = entries.AddEntry(&tb1, int32(10), "Delcos", "delcos_2201@gmx.de")
+    if err != nil {
+        fmt.Println("Could not add entry", err)
+    }
     fmt.Println(tb1.Entries.Values)
     err = entries.ReadEntry(tb1, 0)
     if err != nil {

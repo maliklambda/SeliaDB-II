@@ -11,6 +11,8 @@ type Database_t struct {
 type Table_t struct {
     Name string
     NumOfColumns uint32
+    OffsetToLastEntry uint64
+    StartEntries uint16
     Columns [] Column_t
     Entries *Entries_t
 }

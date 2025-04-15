@@ -28,12 +28,13 @@ func OpenFile (fileName string) (fileHandler, error) {
 
 
 
-func (fh fileHandler) WriteTableToFile (tb types.Table_t, offset int64) error {
+func (fh fileHandler) WriteTableToFile (tb *types.Table_t, offset int64) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
     defer f.Close()
+    // move cursor to SOF + offset
     _, err = f.Seek(offset, 0)
     if err != nil {
         return err
@@ -89,5 +90,27 @@ func (fh fileHandler) WriteColumnToFile (col types.Column_t, offset int64) error
 
 }
 
+
+func WriteEntryToFile (tb *types.Table_t, filePath string, entry []byte) error {
+    fmt.Println("Writing entry to file")
+    fmt.Println(entry)
+    f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    _, err = f.Seek(int64(tb.OffsetToLastEntry), 0)
+    if err != nil {
+        return err
+    }
+    _, err = f.Write(entry)
+    if err != nil {
+        return err
+    }
+    tb.OffsetToLastEntry += uint64(len(entry))
+
+    fmt.Println(tb.OffsetToLastEntry)
+    fmt.Println("Wrote entry successfully")
+    return nil
+}
 
 
