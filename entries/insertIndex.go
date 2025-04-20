@@ -6,8 +6,8 @@ import(
 )
 
 
-func InsertToBtree (root **btree.Node_t, key int, val int) error {
-    err := btree.Insert(root, *root, btree.Entry_t{Key:key, Val:val})
+func InsertToBtree (root **btree.Node_t, key uint32, val uint32) error {
+    err := btree.Insert(root, *root, btree.Entry_t{Key:key, Value:val})
     if err != nil {
         return err
     }

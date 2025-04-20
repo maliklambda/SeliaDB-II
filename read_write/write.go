@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+
+	"github.com/MalikL2005/Go_DB/btree"
 	"github.com/MalikL2005/Go_DB/types"
 )
 
@@ -11,6 +13,7 @@ import (
 
 type FileHandler struct {
     Path string
+    Root **btree.Node_t
     File *os.File
 }
 
@@ -22,7 +25,7 @@ func OpenFile (fileName string) (FileHandler, error) {
         return FileHandler{}, err
     }
     defer f.Close()
-    return FileHandler{fileName, nil}, nil
+    return FileHandler{fileName, nil, nil}, nil
 }
 
 
@@ -135,9 +138,10 @@ func WriteEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
     }
     // take id as first column
     val := binary.LittleEndian.Uint32(entry)
-    fmt.Println("Inserting offset:", pos, "Key:", val)
-    InsertToBtree()
+
     // insert into btree
+    fmt.Println("Inserting offset:", pos, "Key:", val)
+    entries.InsertToBtree(fh.Root)
     _, err = f.Write(entry)
     if err != nil {
         return err
