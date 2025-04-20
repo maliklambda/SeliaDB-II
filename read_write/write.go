@@ -129,10 +129,12 @@ func WriteEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
     if err != nil {
         return err
     }
-    _, err = f.Seek(int64(tb.OffsetToLastEntry) + int64(tb.StartEntries), 0)
+    pos, err := f.Seek(int64(tb.OffsetToLastEntry) + int64(tb.StartEntries), 0)
     if err != nil {
         return err
     }
+    fmt.Println("Inserting at offset", pos)
+    // insert into btree
     _, err = f.Write(entry)
     if err != nil {
         return err

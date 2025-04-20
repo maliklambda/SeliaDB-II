@@ -6,6 +6,8 @@ import (
 	"github.com/MalikL2005/Go_DB/types"
     "github.com/MalikL2005/Go_DB/read_write"
     "github.com/MalikL2005/Go_DB/entries"
+    "github.com/MalikL2005/Go_DB/search"
+    // "github.com/MalikL2005/btree_SeliaDB/btree"
 )
 
 
@@ -45,15 +47,19 @@ func main (){
         fmt.Println(err)
         panic(1)
     }
-    err = entries.AddEntry(&tb1, fh, "EdosWhooo", "edos@gmail.com")
+    err = entries.AddEntry(&tb1, fh, int32(100), "EdosWhooo", "edos@gmail.com")
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
-    err = entries.AddEntry(&tb1, fh, "Delcos", "delcos_2201@gmx.de")
+    err = entries.AddEntry(&tb1, fh, int32(44), "Delcos", "delcos_2201@gmx.de")
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
-    err = entries.ReadEntry(tb1, 1)
+    err = entries.AddEntry(&tb1, fh, int32(51), "Wuschlee", "wuschlee-lorencius@mail.de")
+    if err != nil {
+        fmt.Println("Could not add entry", err)
+    }
+    _, err = entries.ReadEntry(tb1, 1)
     if err != nil {
         fmt.Println(err)
     }
@@ -67,5 +73,11 @@ func main (){
     fh.ReadTableFromFile(&tb2, 0)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
+    search.IterateOverEntries(tb1)
+    entry, err := search.FindEntryByKey(tb1, "col1", 44)
+    if err != nil {
+        return
+    }
+    fmt.Println(entry)
 }
 

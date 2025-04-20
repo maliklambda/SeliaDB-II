@@ -1,5 +1,10 @@
 package types
 
+import (
+	"encoding/binary"
+	"errors"
+	"fmt"
+)
 
 type Database_t struct {
     Name string
@@ -62,3 +67,26 @@ const (
 
 
 
+// Returns 0 if equal
+// -1 if v1 is greater
+// 1 if v2 is greater
+func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
+    fmt.Println("Comparing values...")
+    switch(tp){
+    case INT32:
+        v2, ok := val2.(int)
+        if !ok {
+            return 0, errors.New("Type does not match value")
+        }
+        v1 := int32(binary.LittleEndian.Uint32(val1))
+        fmt.Println("Comparing", v2, v1)
+        if v1 > int32(v2) {
+            return -1, nil
+        } else if int32(v2) > v1 {
+            return 1, nil
+        } else if v1 == int32(v2) {
+            return 0, nil
+        }
+    }
+    return 0, nil
+}

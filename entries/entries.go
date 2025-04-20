@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	// "reflect"
-
 	"github.com/MalikL2005/Go_DB/read_write"
 	"github.com/MalikL2005/Go_DB/types"
 )
@@ -15,8 +13,11 @@ func AddEntry (tb *types.Table_t, fh read_write.FileHandler, values ... any) err
     if tb.Entries == nil {
         tb.Entries = &types.Entries_t{}
     }
+    if len(values) != int(tb.NumOfColumns) {
+        return errors.New(fmt.Sprintf("Must pass correct number of arguments. Expected %d, got %d", tb.NumOfColumns, len(values)))
+    }
     var entry []byte
-    for i := range tb.NumOfColumns-1 {
+    for i := range tb.NumOfColumns {
         // fmt.Println(reflect.TypeOf(values[i]))
         s, ok := values[i].(string)
         if ok {
@@ -41,21 +42,22 @@ func AddEntry (tb *types.Table_t, fh read_write.FileHandler, values ... any) err
 }
 
 
-func ReadEntry (tb types.Table_t, index int) error {
+func ReadEntry (tb types.Table_t, index int) ([][]byte, error) {
     fmt.Println("Reading entry")
     if tb.Entries == nil {
-        return errors.New("Entries cannot be Nil")
+        return [][]byte{}, errors.New("Entries cannot be Nil")
     }
     if tb.Entries.Values == nil {
-        return errors.New("Entries->Values cannot be nil")
+        return [][]byte{}, errors.New("Entries->Values cannot be nil")
     }
 
     if tb.Entries.NumOfEntries-1 < uint64(index) {
-        return errors.New(fmt.Sprintf("Entries does not contain %d many values (only %d)", index, tb.Entries.NumOfEntries))
+        return [][]byte{}, errors.New(fmt.Sprintf("Entries does not contain %d many values (only %d)", index, tb.Entries.NumOfEntries))
     }
     fmt.Println(tb.Entries.Values[index])
 
     currentPosition := 0
+    var values [][]byte
     for _, col := range tb.Columns {
         fmt.Print(col.Type.String(), " (", col.Size, "): ")
         if col.Type == types.VARCHAR {
@@ -69,16 +71,18 @@ func ReadEntry (tb types.Table_t, index int) error {
             currentPosition ++
             fmt.Print(string(buff), " ")
             fmt.Println(buff)
+            values = append(values, buff)
         } else {
             bt := tb.Entries.Values[index][currentPosition:col.Size]
             currentPosition += int(col.Size)
             val := int32(binary.LittleEndian.Uint32(bt))
             fmt.Print(val, " ")
             fmt.Println(bt)
+            values = append(values, bt)
         }
     }
 
-    return nil
+    return values, nil
 }
 
 
