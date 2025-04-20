@@ -13,7 +13,7 @@ import (
 
 func main (){
     col1 := types.Column_t {
-        Name: "col1",
+        Name: "id",
         Type: types.INT32,
         Size: 4,
     }
@@ -74,8 +74,9 @@ func main (){
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
     search.IterateOverEntries(tb1)
-    entry, err := search.FindEntryByKey(tb1, "col1", 44)
+    entry, err := search.FindEntryByKey(tb1, "id", 44)
     if err != nil {
+        fmt.Println(err)
         return
     }
     fmt.Println(entry)

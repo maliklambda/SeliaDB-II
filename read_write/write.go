@@ -133,7 +133,10 @@ func WriteEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
     if err != nil {
         return err
     }
-    fmt.Println("Inserting at offset", pos)
+    // take id as first column
+    val := binary.LittleEndian.Uint32(entry)
+    fmt.Println("Inserting offset:", pos, "Key:", val)
+    InsertToBtree()
     // insert into btree
     _, err = f.Write(entry)
     if err != nil {
