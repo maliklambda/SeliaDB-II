@@ -83,7 +83,7 @@ func main (){
     fmt.Println(tb1)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
-    entries.UpdateOffsetLastEntry(fh, 0, 5000)
+    // entries.UpdateOffsetLastEntry(fh, 0, 5000)
     fh.ReadTableFromFile(&tb2, 0)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
@@ -114,6 +114,16 @@ func main (){
         fmt.Println("Error writing db1 to file")
         return
     }
+
+    var newTB types.Table_t
+    fh.Path = "tb1.tb"
+    err = fh.ReadTableFromFile(&newTB, 0)
+    if err != nil {
+        fmt.Println("Error reading tb from file")
+        return
+    }
+    fmt.Println("READ THIS", newTB)
+    fmt.Println(newTB.OffsetToLastEntry)
 
 }
 

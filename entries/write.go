@@ -64,12 +64,12 @@ func WriteTableToFile (tb *types.Table_t, fh FileHandler, offset int64) error {
         return err
     }
 
+    fmt.Println("Writing this as offset to last entry", tb.OffsetToLastEntry)
     err = binary.Write(f, binary.LittleEndian, tb.OffsetToLastEntry)
     if err != nil {
         return err
     }
 
-    fh.File = f
     for _, col := range tb.Columns {
         offset, err := f.Seek(0,1)
         if err != nil {
@@ -79,7 +79,7 @@ func WriteTableToFile (tb *types.Table_t, fh FileHandler, offset int64) error {
         fmt.Printf("Offset: %d\n", offset)
         fh.WriteColumnToFile(col, offset)
     }
-    pos, err := fh.File.Seek(0, 1)
+    pos, err := f.Seek(0, 1)
     if err != nil {
         return err
     }
