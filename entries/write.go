@@ -1,4 +1,4 @@
-package read_write
+package entries
 
 import (
 	"encoding/binary"
@@ -25,7 +25,8 @@ func OpenFile (fileName string) (FileHandler, error) {
         return FileHandler{}, err
     }
     defer f.Close()
-    return FileHandler{fileName, nil, nil}, nil
+    newRoot := &btree.Node_t{}
+    return FileHandler{fileName, &newRoot, nil}, nil
 }
 
 
@@ -141,7 +142,7 @@ func WriteEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
 
     // insert into btree
     fmt.Println("Inserting offset:", pos, "Key:", val)
-    entries.InsertToBtree(fh.Root)
+    InsertToBtree(fh.Root, val, uint32(pos))
     _, err = f.Write(entry)
     if err != nil {
         return err

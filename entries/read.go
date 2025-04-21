@@ -1,4 +1,4 @@
-package read_write
+package entries
 
 import (
 	"encoding/binary"

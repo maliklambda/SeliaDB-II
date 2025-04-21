@@ -17,7 +17,7 @@ type Entry_t struct {
 
 
 const (
-    C = 3
+    C = 2
     MIN_CHILDREN = C
     MAX_CHILDREN = 2*C // MAX_CHILDREN = 2 * C
     MIN_KEYS = C-1 // MIN_KEYS = C - 1

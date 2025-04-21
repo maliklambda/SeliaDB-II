@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
+	// "github.com/MalikL2005/Go_DB/btree"
+	"github.com/MalikL2005/Go_DB/btree"
+	"github.com/MalikL2005/Go_DB/entries"
+	"github.com/MalikL2005/Go_DB/search"
 	"github.com/MalikL2005/Go_DB/types"
-    "github.com/MalikL2005/Go_DB/read_write"
-    "github.com/MalikL2005/Go_DB/entries"
-    "github.com/MalikL2005/Go_DB/search"
-    // "github.com/MalikL2005/btree_SeliaDB/btree"
 )
 
 
@@ -36,7 +36,7 @@ func main (){
     fmt.Println(len(tb1.Columns))
     fmt.Println(tb1.Columns)
     fmt.Println(tb1.Entries)
-    fh, err := read_write.OpenFile("test.bin")
+    fh, err := entries.OpenFile("test.bin")
     if err != nil {
         fmt.Println(err)
         panic(1)
@@ -69,7 +69,7 @@ func main (){
     fmt.Println(tb1)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
-    read_write.UpdateOffsetLastEntry(fh, 0, 5000)
+    entries.UpdateOffsetLastEntry(fh, 0, 5000)
     fh.ReadTableFromFile(&tb2, 0)
     fmt.Print("Read TB2: ")
     fmt.Println(tb2)
@@ -80,5 +80,6 @@ func main (){
         return
     }
     fmt.Println(entry)
+    btree.Traverse(*fh.Root, *fh.Root)
 }
 
