@@ -59,7 +59,15 @@ func main (){
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
-    _, err = entries.ReadEntry(tb1, 1)
+    err = entries.AddEntry(&tb1, fh, int32(112), "DadanCheng", "Dadan-cheng@mail.de")
+    if err != nil {
+        fmt.Println("Could not add entry", err)
+    }
+    err = entries.AddEntry(&tb1, fh, int32(51), "Nafu", "Nagyi-Fufu@lost.sk")
+    if err != nil {
+        fmt.Println("Could not add entry", err)
+    }
+    _, err = entries.ReadEntryIndex(tb1, 1)
     if err != nil {
         fmt.Println(err)
     }
@@ -81,5 +89,17 @@ func main (){
     }
     fmt.Println(entry)
     btree.Traverse(*fh.Root, *fh.Root)
+    entr := btree.SearchKey(fh.Root, *fh.Root, uint32(112))
+    if entr == nil {
+        fmt.Println("Error")
+        return
+    }
+    fmt.Println(*entr)
+    values, err := entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
+    if err != nil {
+        fmt.Println("Error", err)
+        return
+    }
+    fmt.Println(values)
 }
 

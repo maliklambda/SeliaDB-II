@@ -28,5 +28,5 @@ func isKeyInNode(current *Node_t, searchedKey uint32) (bool, int) {
         }
         i++
     }
-    return false, 0
+    return false, i
 }

@@ -12,7 +12,7 @@ func IterateOverEntries(tb types.Table_t){
     fmt.Println("Iterating over entries!!!!!!")
     for cur := range tb.Entries.NumOfEntries {
         fmt.Println("Entry number", cur+1)
-        _, err := entries.ReadEntry (tb, int(cur))
+        _, err := entries.ReadEntryIndex(tb, int(cur))
         if err != nil {
             fmt.Println(err)
             break
@@ -30,7 +30,7 @@ func FindEntryByKey (tb types.Table_t, colName string, value any) ([][]byte, err
     }
     fmt.Println(tb.Columns[index])
     for cur := range tb.Entries.NumOfEntries {
-        entry, err := entries.ReadEntry(tb, int(cur))
+        entry, err := entries.ReadEntryIndex(tb, int(cur))
         if err != nil {
             return [][]byte{}, err
         }

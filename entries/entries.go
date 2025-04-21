@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 
+	// "github.com/MalikL2005/Go_DB/btree"
 	"github.com/MalikL2005/Go_DB/types"
 )
 
@@ -41,7 +43,7 @@ func AddEntry (tb *types.Table_t, fh FileHandler, values ... any) error {
 }
 
 
-func ReadEntry (tb types.Table_t, index int) ([][]byte, error) {
+func ReadEntryIndex (tb types.Table_t, index int) ([][]byte, error) {
     fmt.Println("Reading entry")
     if tb.Entries == nil {
         return [][]byte{}, errors.New("Entries cannot be Nil")
@@ -82,6 +84,69 @@ func ReadEntry (tb types.Table_t, index int) ([][]byte, error) {
     }
 
     return values, nil
+}
+
+
+func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byte, error) {
+    fmt.Println("Reading entry")
+    if tb.Entries == nil {
+        return [][]byte{}, errors.New("Entries cannot be Nil")
+    }
+    if tb.Entries.Values == nil {
+        return [][]byte{}, errors.New("Entries->Values cannot be nil")
+    }
+
+    f, err := os.Open(fh.Path)
+    if err != nil {
+        return [][]byte{}, err
+    }
+
+    _, err = f.Seek(int64(offset), 0)
+    if err != nil {
+        return [][]byte{}, err
+    }
+    
+    values := make([][]byte, 0)
+    currentPosition := 0
+    for _, col := range tb.Columns {
+        fmt.Print(col.Type.String(), " (", col.Size, "): ")
+        if col.Type == types.VARCHAR {
+            buff := make([]byte, 0)
+            buffRead := make([]byte, 1)
+            for range col.Size {
+                _, err := f.Read(buffRead)
+                if err != nil {
+                    return [][]byte{}, err
+                }
+                if buffRead[0] == 0 {
+                    break
+                }
+                buff = append(buff, buffRead[0])
+                currentPosition ++
+            }
+            // append String termination \0
+            buff = append(buff, buffRead[0])
+            currentPosition ++
+            fmt.Print(string(buff), " ")
+            fmt.Println(buff)
+            values = append(values, buff)
+        } else if col.Type == types.INT32 {
+            bt := make([]byte, col.Size)
+            _, err := f.Read(bt)
+            if err != nil {
+                return [][]byte{}, err
+            }
+            currentPosition += int(col.Size)
+            val := int32(binary.LittleEndian.Uint32(bt))
+            fmt.Print(val, " ")
+            fmt.Println(bt)
+            values = append(values, bt)
+        }
+    }
+    return values, nil
+
+
+
 }
 
 
