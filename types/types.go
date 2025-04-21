@@ -62,6 +62,7 @@ func (t Type_t) String() string {
 
 const (
     MAX_DATABASE_NAME_LENGTH = 20
+    MAX_TABLE_NAME_LENGTH = 20
     MAX_COLUMN_NAME_LENGTH = 20
 )
 

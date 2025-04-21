@@ -32,7 +32,7 @@ func OpenFile (fileName string) (FileHandler, error) {
 
 
 
-func (fh FileHandler) WriteTableToFile (tb *types.Table_t, offset int64) error {
+func WriteTableToFile (tb *types.Table_t, fh FileHandler, offset int64) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err

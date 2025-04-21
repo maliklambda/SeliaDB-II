@@ -34,7 +34,7 @@ func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
         fmt.Println(tb.NumOfColumns)
         
 
-        bytes, err := readStringFromFile (f, 10)
+        bytes, err := ReadStringFromFile (f, 10)
         if err != nil {
             return err
         }
@@ -86,7 +86,7 @@ func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
 
 
 
-func readStringFromFile (f *os.File, MAX_LEN int) ([]byte, error) {
+func ReadStringFromFile (f *os.File, MAX_LEN int) ([]byte, error) {
     var bytes []byte
     buf := make([]byte, 1)
     for range MAX_LEN {
@@ -115,7 +115,7 @@ func ReadColumnFromFile (f * os.File, offset int64) (types.Column_t, error) {
     }
 
     colBuffer := types.Column_t{}
-    buf, err := readStringFromFile(f, 10)
+    buf, err := ReadStringFromFile(f, 10)
     if err != nil {
         fmt.Println("Error reading colname")
         return types.Column_t{}, err

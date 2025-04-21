@@ -8,6 +8,7 @@ import (
 	"github.com/MalikL2005/Go_DB/entries"
 	"github.com/MalikL2005/Go_DB/search"
 	"github.com/MalikL2005/Go_DB/types"
+	"github.com/MalikL2005/Go_DB/dbms"
 )
 
 
@@ -33,6 +34,11 @@ func main (){
         NumOfColumns: 3,
         Columns: []types.Column_t{col1, col2, col3},
     }
+    db1 := types.Database_t{
+        Name: "DBTEST",
+        NumOfTables: 1,
+        Tables: []types.Table_t{tb1},
+    }
     fmt.Println(len(tb1.Columns))
     fmt.Println(tb1.Columns)
     fmt.Println(tb1.Entries)
@@ -42,7 +48,7 @@ func main (){
         panic(1)
     }
 
-    err = fh.WriteTableToFile(&tb1, 0)
+    err = entries.WriteTableToFile(&tb1, fh, 0)
     if err != nil {
         fmt.Println(err)
         panic(1)
@@ -101,5 +107,13 @@ func main (){
         return
     }
     fmt.Println(values)
+
+    
+    err = dbms.WriteDatabase(&db1)
+    if err != nil {
+        fmt.Println("Error writing db1 to file")
+        return
+    }
+
 }
 
