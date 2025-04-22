@@ -22,6 +22,39 @@ func IterateOverEntries(tb types.Table_t){
 }
 
 
+
+func IterateOverEntriesInFile (fh entries.FileHandler, tb *types.Table_t) error {
+    fmt.Println("Iterating over entries on file!!!!!!")
+    currentPos := tb.StartEntries
+    values := [][][]byte{}
+    for range tb.Entries.NumOfEntries {
+        fmt.Println("Reading entry at", currentPos)
+        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos), &fh)
+        if err != nil {
+            return err
+        }
+        fmt.Println("Buffer len:",GetEntryLength(buffer))
+        values = append(values, buffer)
+        currentPos += uint16(GetEntryLength(buffer))
+    }
+    fmt.Println("Here")
+    fmt.Println(values)
+    return nil
+}
+
+
+
+func GetEntryLength (entry [][]byte) int {
+    entryLength := 0
+    for _, row := range entry {
+        entryLength += len(row)
+    }
+    return entryLength
+}
+
+
+
+
 func FindEntryByKey (tb types.Table_t, colName string, value any) ([][]byte, error) {
     fmt.Println(colName, value)
     index, err := StringToColumnIndex(tb, colName)

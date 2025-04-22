@@ -34,7 +34,7 @@ func AddEntry (tb *types.Table_t, fh FileHandler, values ... any) error {
     tb.Entries.Values = append(tb.Entries.Values, entry)
     tb.Entries.NumOfEntries ++
     fmt.Println(entry)
-    err := WriteEntryToFile(tb, fh, entry)
+    err := AppendEntryToFile(tb, fh, entry)
     if err != nil {
         fmt.Println("Error writing entry to file", err)
         return err
@@ -89,6 +89,7 @@ func ReadEntryIndex (tb types.Table_t, index int) ([][]byte, error) {
 
 func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byte, error) {
     fmt.Println("Reading entry")
+    fmt.Println("starting at", offset)
     if tb.Entries == nil {
         return [][]byte{}, errors.New("Entries cannot be Nil")
     }
@@ -100,6 +101,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byt
     if err != nil {
         return [][]byte{}, err
     }
+    defer f.Close()
 
     _, err = f.Seek(int64(offset), 0)
     if err != nil {
@@ -143,6 +145,9 @@ func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byt
             values = append(values, bt)
         }
     }
+    pos, _ := f.Seek(0, 1)
+    fmt.Println("ended at", pos)
+
     return values, nil
 
 

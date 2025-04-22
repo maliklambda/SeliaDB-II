@@ -19,7 +19,7 @@ type FileHandler struct {
 
 
 
-func OpenFile (fileName string) (FileHandler, error) {
+func CreateFile (fileName string) (FileHandler, error) {
     f, err := os.Create(fileName)
     if err != nil {
         return FileHandler{}, err
@@ -32,14 +32,16 @@ func OpenFile (fileName string) (FileHandler, error) {
 
 
 
-func WriteTableToFile (tb *types.Table_t, fh FileHandler, offset int64) error {
+func WriteTableToFile (tb *types.Table_t, fh FileHandler) error {
+    fmt.Println("Writing", fh.Path)
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
+    fh.File = f
     defer f.Close()
     // move cursor to SOF + offset
-    _, err = f.Seek(offset, 0)
+    _, err = f.Seek(0, 0)
     if err != nil {
         return err
     }
@@ -54,10 +56,6 @@ func WriteTableToFile (tb *types.Table_t, fh FileHandler, offset int64) error {
         return err
     }
 
-    offsetStartEntries, err := f.Seek(0, 1)
-    if err != nil {
-        return err
-    }
 
     err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
     if err != nil {
@@ -77,6 +75,8 @@ func WriteTableToFile (tb *types.Table_t, fh FileHandler, offset int64) error {
             continue
         }
         fmt.Printf("Offset: %d\n", offset)
+        fmt.Println("column:", col)
+        fmt.Println(f)
         fh.WriteColumnToFile(col, offset)
     }
     pos, err := f.Seek(0, 1)
@@ -86,23 +86,29 @@ func WriteTableToFile (tb *types.Table_t, fh FileHandler, offset int64) error {
     fmt.Println("Offset to entry-start: ", pos)
     tb.StartEntries += uint16(pos)
 
-    _, err = f.Seek(offsetStartEntries, 0)
-    if err != nil {
-        return err
-    }
-
     err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
     if err != nil {
         return err
     }
 
-
+    tb.OffsetToLastEntry = 0
+    if tb.Entries != nil {
+        fmt.Println("Priting entries")
+        for i := range tb.Entries.NumOfEntries {
+            fmt.Println(tb.Entries.Values[i])
+            AppendEntryToFile(tb, fh, tb.Entries.Values[i])
+            tb.OffsetToLastEntry += uint64(len(tb.Entries.Values[i]))
+            fmt.Println("new offset:", tb.OffsetToLastEntry)
+        }
+    }
     return nil
 }
 
 
 
 func (fh FileHandler) WriteColumnToFile (col types.Column_t, offset int64) error{
+    fmt.Println("Writing this right here to file", fh.Path, ":", col)
+    fmt.Println(fh.File)
     _, err := fh.File.Write([]byte(col.Name + "\000"))
     if err != nil {
         fmt.Println("Error writing col name to file")
@@ -126,17 +132,27 @@ func (fh FileHandler) WriteColumnToFile (col types.Column_t, offset int64) error
 }
 
 
-func WriteEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
+func AppendEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
     fmt.Println("Writing entry to file")
     fmt.Println(entry)
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    fmt.Println(fh.Path)
+    f, err := os.OpenFile(fh.Path, os.O_RDWR, 0644)
     if err != nil {
         return err
     }
-    pos, err := f.Seek(int64(tb.OffsetToLastEntry) + int64(tb.StartEntries), 0)
+    if tb.OffsetToLastEntry == 0 {
+        tb.OffsetToLastEntry = uint64(tb.StartEntries)
+    }
+    pos, err := f.Seek(int64(tb.OffsetToLastEntry), 0)
     if err != nil {
         return err
     }
+    fmt.Print("\n\n")
+    fmt.Println("at position:", tb.OffsetToLastEntry + uint64(tb.StartEntries))
+    fmt.Println("last entry:", tb.OffsetToLastEntry)
+    fmt.Println("StartEntries:", uint64(tb.StartEntries))
+    fmt.Println("num entries", tb.Entries.NumOfEntries)
+    fmt.Println(tb.Entries.Values)
     // take id as first column
     val := binary.LittleEndian.Uint32(entry)
 

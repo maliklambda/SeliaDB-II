@@ -30,8 +30,6 @@ func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
             fmt.Println(err)
             return err
         }
-        fmt.Println("Read this from file")
-        fmt.Println(tb.NumOfColumns)
         
 
         bytes, err := ReadStringFromFile (f, 10)

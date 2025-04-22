@@ -8,7 +8,7 @@ import (
 
 type Database_t struct {
     Name string
-    Tables []Table_t
+    Tables []*Table_t
     NumOfTables uint16
 }
 
