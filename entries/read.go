@@ -38,10 +38,14 @@ func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
         }
         tb.Name = string(bytes)
 
+        curPos, _ := f.Seek(0, 1)
+        fmt.Println("before reading start entries", curPos)
         err = binary.Read(f, binary.LittleEndian, &tb.StartEntries)
         if err != nil {
             return err
         }
+        fmt.Println("reading this as starentries", tb.StartEntries)
+
         err = binary.Read(f, binary.LittleEndian, &tb.OffsetToLastEntry)
         if err != nil {
             return err

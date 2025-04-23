@@ -52,10 +52,13 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
     }
 
 
+    posStartEntries, _ := f.Seek(0, 1)
+    fmt.Println("before writing start entries", posStartEntries)
     err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
     if err != nil {
         return err
     }
+    fmt.Println("Writing this as starentries", tb.StartEntries)
 
     fmt.Println("Writing this as offset to last entry", tb.OffsetToLastEntry)
     err = binary.Write(f, binary.LittleEndian, tb.OffsetToLastEntry)
@@ -80,6 +83,11 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
     }
     fmt.Println("Offset to entry-start: ", pos)
     tb.StartEntries += uint16(pos)
+
+    _, err = f.Seek(posStartEntries, 0)
+    if err != nil {
+        return err
+    }
 
     err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
     if err != nil {
