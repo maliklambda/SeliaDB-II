@@ -10,7 +10,7 @@ import (
 	"github.com/MalikL2005/Go_DB/types"
 )
 
-func AddEntry (tb *types.Table_t, fh FileHandler, values ... any) error {
+func AddEntry (tb *types.Table_t, fh *FileHandler, values ... any) error {
     if tb.Entries == nil {
         tb.Entries = &types.Entries_t{}
     }
@@ -151,7 +151,17 @@ func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byt
     return values, nil
 
 
-
 }
+
+
+func GetEntryLength (entry [][]byte) int {
+    entryLength := 0
+    for _, row := range entry {
+        entryLength += len(row)
+    }
+    return entryLength
+}
+
+
 
 

@@ -6,7 +6,7 @@ import (
 	// "github.com/MalikL2005/Go_DB/btree"
 	// "github.com/MalikL2005/Go_DB/btree"
 	"github.com/MalikL2005/Go_DB/entries"
-	"github.com/MalikL2005/Go_DB/search"
+	// "github.com/MalikL2005/Go_DB/search"
 	"github.com/MalikL2005/Go_DB/types"
 	// "github.com/MalikL2005/Go_DB/dbms"
 )
@@ -115,51 +115,38 @@ func main (){
         fmt.Println("Error opening fh")
         return
     }
-    entries.WriteTableToFile(&tb1, fh)
-    err = entries.AddEntry(&tb1, fh, int32(100), "EdosWhooo", "edos@gmail.com")
+    entries.WriteTableToFile(&tb1, &fh)
+    err = entries.AddEntry(&tb1, &fh, int32(100), "EdosWhooo", "edos@gmail.com")
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
-    err = entries.AddEntry(&tb1, fh, int32(50), "Delcos", "delcos2201@gmail.com")
+    err = entries.AddEntry(&tb1, &fh, int32(50), "Delcos", "delcos2201@gmail.com")
     if err != nil {
         fmt.Println("Could not add entry", err)
     }
     fmt.Println()
     fmt.Println()
     fmt.Println(tb1)
-    
-    fmt.Println("Entries", db1.Tables[0].Entries)
-    _, err = entries.ReadEntryIndex(*db1.Tables[0], 0)
-    if err != nil {
-        fmt.Println(err)
-    }
-
     fmt.Println(db1)
-
-    // err = dbms.WriteDatabase(&db1)
-    // if err != nil {
-    //     fmt.Println("Error writing db1 to file:", err)
-    //     return
-    // }
-    //
-    // fmt.Println(db1)
-    // var tbTest types.Table_t
-    // fh.ReadTableFromFile(&tbTest, 0)
-    // fmt.Println(tbTest)
-    //
-    // db2, err := dbms.ReadDatabase("DBTEST")
-    // if err != nil {
-    //     fmt.Println("Error reading db:", err)
-    //     return
-    // }
-    //
-    // fmt.Println(db2)
-    // fmt.Println(db2.Tables[0])
-    //
-    err = search.IterateOverEntriesInFile(fh, &tb1)
+    entr, err := entries.ReadEntryFromFile(&tb1, int(tb1.StartEntries), &fh)
     if err != nil {
-        fmt.Println("Error iterating over entries on file", err)
+        fmt.Println("error reading entry pk", err)
         return
     }
+    err = entries.DeleteEntryByPK(&tb1, &fh, uint32(100))
+    if err != nil {
+        fmt.Println("error deleting entry pk", err)
+        return
+    }
+
+    entr, err = entries.ReadEntryFromFile(&tb1, int(tb1.StartEntries), &fh)
+    if err != nil {
+        fmt.Println("error reading entry pk", err)
+        return
+    }
+
+    fmt.Println(entr)
+
+
 }
 

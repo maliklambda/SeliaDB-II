@@ -33,25 +33,14 @@ func IterateOverEntriesInFile (fh entries.FileHandler, tb *types.Table_t) error 
         if err != nil {
             return err
         }
-        fmt.Println("Buffer len:",GetEntryLength(buffer))
+        fmt.Println("Buffer len:",entries.GetEntryLength(buffer))
         values = append(values, buffer)
-        currentPos += uint16(GetEntryLength(buffer))
+        currentPos += uint16(entries.GetEntryLength(buffer))
     }
     fmt.Println("Here")
     fmt.Println(values)
     return nil
 }
-
-
-
-func GetEntryLength (entry [][]byte) int {
-    entryLength := 0
-    for _, row := range entry {
-        entryLength += len(row)
-    }
-    return entryLength
-}
-
 
 
 

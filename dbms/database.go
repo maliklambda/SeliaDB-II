@@ -52,7 +52,7 @@ func WriteDatabase (db *types.Database_t) error {
         fh := entries.FileHandler{
             Path: table.Name+".tb",
         }
-        err = entries.WriteTableToFile(table, fh)
+        err = entries.WriteTableToFile(table, &fh)
         if err != nil {
             return err
         }

@@ -32,7 +32,7 @@ func CreateFile (fileName string) (FileHandler, error) {
 
 
 
-func WriteTableToFile (tb *types.Table_t, fh FileHandler) error {
+func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
     fmt.Println("Writing", fh.Path)
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
@@ -40,11 +40,6 @@ func WriteTableToFile (tb *types.Table_t, fh FileHandler) error {
     }
     fh.File = f
     defer f.Close()
-    // move cursor to SOF + offset
-    _, err = f.Seek(0, 0)
-    if err != nil {
-        return err
-    }
 
     err = binary.Write(f, binary.LittleEndian, tb.NumOfColumns)
     if err != nil {
@@ -90,6 +85,11 @@ func WriteTableToFile (tb *types.Table_t, fh FileHandler) error {
     if err != nil {
         return err
     }
+    // err = delete.DeleteAllEntries(tb, fh)
+    // if err != nil {
+    //     fmt.Println("Error deleting entries:", err)
+    //     return err
+    // }
 
     tb.OffsetToLastEntry = 0
     if tb.Entries != nil {
@@ -132,7 +132,7 @@ func (fh FileHandler) WriteColumnToFile (col types.Column_t, offset int64) error
 }
 
 
-func AppendEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
+func AppendEntryToFile (tb *types.Table_t, fh *FileHandler, entry []byte) error {
     fmt.Println("Writing entry to file")
     fmt.Println(entry)
     fmt.Println(fh.Path)
@@ -167,19 +167,14 @@ func AppendEntryToFile (tb *types.Table_t, fh FileHandler, entry []byte) error {
 
     fmt.Println(tb.OffsetToLastEntry)
     fmt.Println("Wrote entry successfully")
-    UpdateOffsetLastEntry(fh, 0, uint16(len(entry)))
+    UpdateOffsetLastEntry(fh, uint16(len(entry)))
     return nil
 }
 
 
 
-func UpdateOffsetLastEntry (fh FileHandler, offsetTable int64, newLastEntryOffset uint16) error {
+func UpdateOffsetLastEntry (fh *FileHandler, newLastEntryOffset uint16) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
-    if err != nil {
-        return err
-    }
-
-    _, err = f.Seek(offsetTable, 0)
     if err != nil {
         return err
     }
