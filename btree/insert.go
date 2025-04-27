@@ -36,8 +36,6 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
     // current is leaf node and not full
     if len(*current.Children) == 0 && len(*current.Entries) < MAX_KEYS {
         fmt.Println("No children + root is not full")
-        // *(current).Entries = append(*(current).Entries, entry)
-        // insert entry to current entries
         err := insertEntry(current, entry)
         if err != nil {
             return err

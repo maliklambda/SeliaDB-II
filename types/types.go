@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Database_t struct {
@@ -42,7 +43,7 @@ type Type_t uint8
 const (
     INT32 Type_t = iota
     VARCHAR 
-    FLOAT 
+    FLOAT32
     BOOL
     NONE
 )
@@ -50,13 +51,45 @@ const (
 var typeNames = map[Type_t] string {
     INT32: "INT32",
     VARCHAR: "VARCHAR",
-    FLOAT: "FLOAT",
+    FLOAT32: "FLOAT",
     BOOL: "BOOL",
     NONE: "NONE",
 }
 
+
+var typeSizes = map[Type_t] int {
+    INT32: binary.Size(int32(0)),
+    FLOAT32: binary.Size(float32(0)),
+    BOOL: binary.Size(uint8(0)),
+    NONE: binary.Size(uint8(0)),
+}
+
 func (t Type_t) String() string {
     return typeNames[t]
+}
+
+
+func StringToType_t (tb string) (Type_t, error){
+    tb = strings.TrimSpace(tb)
+    tb = strings.ToUpper(tb)
+    for key, val := range typeNames {
+        if val == tb {
+            return key, nil
+        }
+    }
+    return NONE, errors.New("Type does not exist")
+}
+
+
+func (tp Type_t) GetTypeSize (varCharLen uint32) (uint16, error) {
+    if tp == VARCHAR {
+        return uint16(varCharLen +1), nil
+    }
+    size, ok := typeSizes[tp]
+    if !ok {
+        return 0, errors.New("No size for this type")
+    }
+    return uint16(size), nil
 }
 
 
@@ -91,3 +124,16 @@ func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
     }
     return 0, nil
 }
+
+
+
+
+func (col Column_t) GetColSize () int {
+    size := len(col.Name+"\000")
+    size += binary.Size(col.Type)
+    size += binary.Size(col.Size)
+    return size
+}
+
+
+

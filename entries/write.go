@@ -219,3 +219,20 @@ func UpdateOffsetLastEntry (fh *FileHandler, newLastEntryOffset uint16) error {
 }
 
 
+
+func UpdateNumOfColumns (fh *FileHandler, newNumOfColumns uint32) error {
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+
+    if err := binary.Write(f, binary.LittleEndian, newNumOfColumns); err != nil {
+        return err
+    }
+
+    return nil
+}
+
+
+

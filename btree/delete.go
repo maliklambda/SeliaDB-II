@@ -8,6 +8,7 @@ import (
 
 
 
+// Todo change function to take PK as parameter, not Entry_t
 func Delete (root **Node_t, current *Node_t, entry Entry_t) error {
     if current == nil {
         return errors.New("Current may not be nil")
