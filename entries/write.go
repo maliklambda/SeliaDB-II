@@ -82,7 +82,7 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
         return err
     }
     fmt.Println("Offset to entry-start: ", pos)
-    tb.StartEntries += uint16(pos)
+    tb.StartEntries = uint16(pos)
 
     _, err = f.Seek(posStartEntries, 0)
     if err != nil {
@@ -93,19 +93,19 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
     if err != nil {
         return err
     }
-    // err = delete.DeleteAllEntries(tb, fh)
-    // if err != nil {
-    //     fmt.Println("Error deleting entries:", err)
-    //     return err
-    // }
+    err = DeleteAllEntries(tb, fh)
+    if err != nil {
+        fmt.Println("Error deleting entries:", err)
+        return err
+    }
 
     tb.OffsetToLastEntry = 0
+    fmt.Println("starting offset:", tb.StartEntries)
     if tb.Entries != nil {
         fmt.Println("Priting entries")
         for i := range tb.Entries.NumOfEntries {
             fmt.Println(tb.Entries.Values[i])
             AppendEntryToFile(tb, fh, tb.Entries.Values[i])
-            tb.OffsetToLastEntry += uint64(len(tb.Entries.Values[i]))
             fmt.Println("new offset:", tb.OffsetToLastEntry)
         }
     }
@@ -151,6 +151,7 @@ func AppendEntryToFile (tb *types.Table_t, fh *FileHandler, entry []byte) error 
     if tb.OffsetToLastEntry == 0 {
         tb.OffsetToLastEntry = uint64(tb.StartEntries)
     }
+    fmt.Println("Currently right here", tb.OffsetToLastEntry)
     pos, err := f.Seek(int64(tb.OffsetToLastEntry), 0)
     if err != nil {
         return err
@@ -235,4 +236,32 @@ func UpdateNumOfColumns (fh *FileHandler, newNumOfColumns uint32) error {
 }
 
 
+func UpdateStartEntries (fh *FileHandler, newStartEntries uint16) error {
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
 
+    _, err = f.Seek(int64(binary.Size(uint32(1))), 1)
+    if err != nil {
+        return err
+    }
+
+    // Read table name
+    buf := make([]byte, 1)
+    for range types.MAX_COLUMN_NAME_LENGTH +1 {
+        _, err = f.Read(buf)
+        if err != nil {
+            return err
+        }
+        if buf[0] == 0 {
+            break
+        }
+    }
+
+    if err := binary.Write(f, binary.LittleEndian, newStartEntries); err != nil {
+        return err
+    }
+    return nil
+}

@@ -69,7 +69,7 @@ func FindEntryByKey (tb types.Table_t, colName string, value any) ([][]byte, err
         }
     }
     fmt.Println("Not found")
-        return [][]byte{}, nil
+    return [][]byte{}, nil
 }
 
 

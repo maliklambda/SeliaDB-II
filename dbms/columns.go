@@ -37,6 +37,13 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
         return err
     }
 
+    fmt.Println("start entries:", tb.StartEntries)
+    colSize := uint16(newCol.GetColSize())
+    fmt.Println("offset :", colSize)
+    if err = entries.UpdateStartEntries(fh, tb.StartEntries+colSize); err != nil {
+        return err
+    }
+
     return nil
 }
 

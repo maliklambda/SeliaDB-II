@@ -74,6 +74,9 @@ func ReadEntryIndex (tb types.Table_t, index int) ([][]byte, error) {
             fmt.Println(buff)
             values = append(values, buff)
         } else {
+            if currentPosition >= len(tb.Entries.Values[index]){
+                continue
+            }
             bt := tb.Entries.Values[index][currentPosition:col.Size]
             currentPosition += int(col.Size)
             val := int32(binary.LittleEndian.Uint32(bt))
