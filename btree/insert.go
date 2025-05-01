@@ -280,6 +280,7 @@ func insertToTempArr (n Node_t, entry Entry_t) []Entry_t {
         if entry.Key <= nodeEntry.Key {
             tempArr[i] = entry
             i++
+            continue
         }
         tempArr[i] = nodeEntry
         i++

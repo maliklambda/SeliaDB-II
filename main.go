@@ -3,12 +3,11 @@ package main
 import (
 	"fmt"
 
-	// "github.com/MalikL2005/Go_DB/btree"
-	// "github.com/MalikL2005/Go_DB/btree"
+	"github.com/MalikL2005/Go_DB/btree"
 	"github.com/MalikL2005/Go_DB/entries"
-	// "github.com/MalikL2005/Go_DB/search"
+	"github.com/MalikL2005/Go_DB/search"
+	"github.com/MalikL2005/Go_DB/dbms"
 	"github.com/MalikL2005/Go_DB/types"
-	// "github.com/MalikL2005/Go_DB/dbms"
 )
 
 
@@ -45,70 +44,6 @@ func main (){
         NumOfTables: 2,
         Tables: tbs,
     }
-    // fmt.Println(len(tb1.Columns))
-    // fmt.Println(tb1.Columns)
-    // fmt.Println(tb1.Entries)
-    // fh, err := entries.OpenFile("test.bin")
-    // if err != nil {
-    //     fmt.Println(err)
-    //     panic(1)
-    // }
-    //
-    // err = entries.WriteTableToFile(&tb1, fh, 0)
-    // if err != nil {
-    //     fmt.Println(err)
-    //     panic(1)
-    // }
-    // err = entries.AddEntry(&tb1, fh, int32(44), "Delcos", "delcos_2201@gmx.de")
-    // if err != nil {
-    //     fmt.Println("Could not add entry", err)
-    // }
-    // err = entries.AddEntry(&tb1, fh, int32(51), "Wuschlee", "wuschlee-lorencius@mail.de")
-    // if err != nil {
-    //     fmt.Println("Could not add entry", err)
-    // }
-    // err = entries.AddEntry(&tb1, fh, int32(112), "DadanCheng", "Dadan-cheng@mail.de")
-    // if err != nil {
-    //     fmt.Println("Could not add entry", err)
-    // }
-    // err = entries.AddEntry(&tb1, fh, int32(51), "Nafu", "Nagyi-Fufu@lost.sk")
-    // if err != nil {
-    //     fmt.Println("Could not add entry", err)
-    // }
-    // _, err = entries.ReadEntryIndex(tb1, 1)
-    // if err != nil {
-    //     fmt.Println(err)
-    // }
-    // tb2 := types.Table_t{}
-    // fh.ReadTableFromFile(&tb2, 0)
-    // fmt.Print("TB1: ")
-    // fmt.Println(tb1)
-    // fmt.Print("Read TB2: ")
-    // fmt.Println(tb2)
-    // // entries.UpdateOffsetLastEntry(fh, 0, 5000)
-    // fh.ReadTableFromFile(&tb2, 0)
-    // fmt.Print("Read TB2: ")
-    // fmt.Println(tb2)
-    // search.IterateOverEntries(tb1)
-    // entry, err := search.FindEntryByKey(tb1, "id", 44)
-    // if err != nil {
-    //     fmt.Println(err)
-    //     return
-    // }
-    // fmt.Println(entry)
-    // btree.Traverse(*fh.Root, *fh.Root)
-    // entr := btree.SearchKey(fh.Root, *fh.Root, uint32(112))
-    // if entr == nil {
-    //     fmt.Println("Error")
-    //     return
-    // }
-    // fmt.Println(*entr)
-    // values, err := entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
-    // if err != nil {
-    //     fmt.Println("Error", err)
-    //     return
-    // }
-    // fmt.Println(values)
 
     fh, err := entries.CreateFile("tb1.tb")
     if err != nil {
@@ -116,36 +51,53 @@ func main (){
         return
     }
     entries.WriteTableToFile(&tb1, &fh)
-    err = entries.AddEntry(&tb1, &fh, int32(100), "EdosWhooo", "edos@gmail.com")
-    if err != nil {
-        fmt.Println("Could not add entry", err)
-    }
-    err = entries.AddEntry(&tb1, &fh, int32(50), "Delcos", "delcos2201@gmail.com")
-    if err != nil {
-        fmt.Println("Could not add entry", err)
-    }
-    fmt.Println()
-    fmt.Println()
-    fmt.Println(tb1)
-    fmt.Println(db1)
-    entr, err := entries.ReadEntryFromFile(&tb1, int(tb1.StartEntries), &fh)
-    if err != nil {
-        fmt.Println("error reading entry pk", err)
-        return
-    }
-    err = entries.DeleteEntryByPK(&tb1, &fh, uint32(100))
-    if err != nil {
-        fmt.Println("error deleting entry pk", err)
-        return
-    }
 
-    entr, err = entries.ReadEntryFromFile(&tb1, int(tb1.StartEntries), &fh)
-    if err != nil {
-        fmt.Println("error reading entry pk", err)
-        return
-    }
-
+    entries.AddEntry(&tb1, &fh, int32(23), "EdosWhoo", "Edos@gmail.com")
+    entries.AddEntry(&tb1, &fh, int32(24), "Delcos", "Delcos2201@gmail.com")
+    entries.AddEntry(&tb1, &fh, int32(22), "WuschLee", "WuschLee-Lorencius@mail.de")
+    entry, err := search.FindEntryByKey(tb1, "email", "EdosW@gmail.com")
+    entr := btree.SearchKey(fh.Root, *fh.Root, uint32(22))
     fmt.Println(entr)
+    entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
+
+    fmt.Println(db1)
+    fmt.Println(entry)
+    
+    if err = fh.ReadTableFromFile(&tb2, 0); err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println("Before:", tb2)
+    if err = dbms.AddColumn(&fh, &tb1, "age", "INT32", 0); err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    if err = fh.ReadTableFromFile(&tb2, 0); err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println("After:", tb2)
+    fh.Path = "tb2.tb"
+    // newRoot := &btree.Node_t{}
+    // fh.Root = &newRoot
+
+    tb2.Entries = tb1.Entries
+    entries.WriteTableToFile(&tb2, &fh)
+
+    entry, err = search.FindEntryByKey(tb2, "email", "EdosW@gmail.com")
+    if err != nil {
+        fmt.Println("Error:", err)
+        return
+    }
+    fmt.Println(entry)
+
+    err = entries.DeleteEntryByPK(&tb2, &fh, uint32(23))
+    if err != nil {
+        fmt.Println("Error:", err)
+    }
+
+    search.IterateOverEntriesInFile(fh, &tb2)
 
 
 }

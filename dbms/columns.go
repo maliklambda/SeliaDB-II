@@ -44,6 +44,8 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
         return err
     }
 
+    // Move btree entries
+
     return nil
 }
 
@@ -151,5 +153,9 @@ func allocateInFile (fh *entries.FileHandler, offset int64, numBytes int64) erro
     
     return nil
 }
+
+
+
+
 
 

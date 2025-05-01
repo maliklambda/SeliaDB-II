@@ -136,4 +136,15 @@ func (col Column_t) GetColSize () int {
 }
 
 
+type CompareOperator uint8
+
+const (
+    GREATER CompareOperator = iota
+    SMALLER
+    EQUAL
+    SMALLER_EQUAL
+    GREATER_EQUAL
+)
+
+
 
