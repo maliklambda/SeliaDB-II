@@ -37,19 +37,86 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
         return err
     }
 
-    fmt.Println("start entries:", tb.StartEntries)
+    fmt.Println("\n\nstart entries:", tb.StartEntries)
     colSize := uint16(newCol.GetColSize())
     fmt.Println("offset :", colSize)
     if err = entries.UpdateStartEntries(fh, tb.StartEntries+colSize); err != nil {
         return err
     }
+    tb.StartEntries += colSize
 
     // Move btree entries
 
+    // iterate over all entries, insert null for column (-> for later: custom default value)
+    currentPos := tb.StartEntries
+    values := [][][]byte{}
+    for range tb.Entries.NumOfEntries {
+        fmt.Println("Reading entry at", currentPos)
+        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos), fh)
+        if err != nil {
+            return err
+        }
+        values = append(values, buffer)
+        currentPos += uint16(entries.GetEntryLength(buffer))
+        fmt.Println("\n\n\nAllocating", newCol.Size, "Bytes at", currentPos)
+        // if newCol.Type == types.VARCHAR {
+        //     AllocateInFile(fh, int64(currentPos), int64(1))
+        //     currentPos += 1
+        // } else {
+        //     AllocateInFile(fh, int64(currentPos), int64(newCol.Size))
+        //     currentPos += newCol.Size
+        // }
+        bytesWritten, err := appendNullValuesToFile(fh, &newCol, int64(currentPos))
+        if err != nil {
+            return err
+        }
+        currentPos += uint16(bytesWritten)
+    }
+    // append null values to end of file
+    // This is necessary because method AllocateInFile() returns EOF for the last value
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+    _, err = f.Seek(0, 2)
+    if err != nil {
+        return err
+    }
+    if newCol.Type == types.VARCHAR {
+        _, err = f.Write([]byte("\000"))
+        if err != nil {
+            return err
+        }
+    } else {
+        nullBytes := make([]byte, colSize)
+        _, err = f.Write(nullBytes)
+        if err != nil {
+            return err
+        }
+    }
+
+    tb.Columns = append(tb.Columns, newCol)
     return nil
 }
 
 
+
+// Returns number of bytes written and error
+func appendNullValuesToFile (fh *entries.FileHandler, col *types.Column_t, currentPos int64) (int, error) {
+    if col.Type == types.VARCHAR {
+        err := AllocateInFile(fh, int64(currentPos), int64(1))
+        if err != nil {
+            return 0, err
+        }
+        return 1, nil
+    }
+    err := AllocateInFile(fh, int64(currentPos), int64(col.Size))
+    if err != nil {
+        return 0, err
+    }
+    return int(col.Size), nil
+}
 
 
 func existsColumnName (tb *types.Table_t, colName string) bool {
@@ -69,7 +136,7 @@ func insertColumnToFile (fh *entries.FileHandler, tb *types.Table_t, col *types.
     }
     defer f.Close()
 
-    if err = allocateInFile(fh, int64(tb.StartEntries), int64(col.GetColSize())); err != nil {
+    if err = AllocateInFile(fh, int64(tb.StartEntries), int64(col.GetColSize())); err != nil {
         return err
     }
     fmt.Println(f)
@@ -113,7 +180,7 @@ func WriteColumnAtOffset (fh *entries.FileHandler, col *types.Column_t, offset i
 
 
 // allocates numBytes many Bytes in file from offset onwards
-func allocateInFile (fh *entries.FileHandler, offset int64, numBytes int64) error {
+func AllocateInFile (fh *entries.FileHandler, offset int64, numBytes int64) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err

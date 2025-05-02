@@ -265,3 +265,29 @@ func UpdateStartEntries (fh *FileHandler, newStartEntries uint16) error {
     }
     return nil
 }
+
+
+func WriteDataToFile (fh *FileHandler, offset int64, value any) error {
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+
+    _, err = f.Seek(offset, 1)
+    if err != nil {
+        return err
+    }
+
+    // copy rest of file
+
+    err = binary.Write(f, binary.LittleEndian, value)
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+
+
+

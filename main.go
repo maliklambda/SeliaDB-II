@@ -55,7 +55,7 @@ func main (){
     entries.AddEntry(&tb1, &fh, int32(23), "EdosWhoo", "Edos@gmail.com")
     entries.AddEntry(&tb1, &fh, int32(24), "Delcos", "Delcos2201@gmail.com")
     entries.AddEntry(&tb1, &fh, int32(22), "WuschLee", "WuschLee-Lorencius@mail.de")
-    entry, err := search.FindEntryByKey(tb1, "email", "EdosW@gmail.com")
+    entry, err := search.FindEntryByKey(&tb1, "email", "EdosW@gmail.com")
     entr := btree.SearchKey(fh.Root, *fh.Root, uint32(22))
     fmt.Println(entr)
     entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
@@ -72,33 +72,7 @@ func main (){
         fmt.Println(err)
         return
     }
-
-    if err = fh.ReadTableFromFile(&tb2, 0); err != nil {
-        fmt.Println(err)
-        return
-    }
-    fmt.Println("After:", tb2)
-    fh.Path = "tb2.tb"
-    // newRoot := &btree.Node_t{}
-    // fh.Root = &newRoot
-
-    tb2.Entries = tb1.Entries
-    entries.WriteTableToFile(&tb2, &fh)
-
-    entry, err = search.FindEntryByKey(tb2, "email", "EdosW@gmail.com")
-    if err != nil {
-        fmt.Println("Error:", err)
-        return
-    }
-    fmt.Println(entry)
-
-    err = entries.DeleteEntryByPK(&tb2, &fh, uint32(23))
-    if err != nil {
-        fmt.Println("Error:", err)
-    }
-
-    search.IterateOverEntriesInFile(fh, &tb2)
-
+    search.IterateOverEntriesInFile(&fh, &tb1)
 
 }
 

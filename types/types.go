@@ -102,8 +102,10 @@ const (
 
 
 // Returns 0 if equal
-// -1 if v1 is greater
-// 1 if v2 is greater
+// -1 if v2 is greater
+// 1 if v1 is greater
+// first param is the entry (e.g. read from file)
+// second param is always the specified value (that is compared to)
 func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
     fmt.Println("Comparing values...")
     switch(tp){
@@ -115,12 +117,19 @@ func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
         v1 := int32(binary.LittleEndian.Uint32(val1))
         fmt.Println("Comparing", v2, v1)
         if v1 > int32(v2) {
-            return -1, nil
-        } else if int32(v2) > v1 {
             return 1, nil
+        } else if int32(v2) > v1 {
+            return -1, nil
         } else if v1 == int32(v2) {
             return 0, nil
         }
+    case VARCHAR:
+        v2, ok := val2.(string)
+        if !ok {
+            return 0, errors.New("Type does not match value")
+        }
+        v1 := string(val1) // handle conversion error: missmatched types
+        return strings.Compare(v1, v2), nil
     }
     return 0, nil
 }
@@ -145,6 +154,20 @@ const (
     SMALLER_EQUAL
     GREATER_EQUAL
 )
+
+
+
+func CompareValuesWithOperator (compareResult int, cmpOperator CompareOperator) bool {
+    switch (cmpOperator){
+        case GREATER: return compareResult == -1
+        case EQUAL: return compareResult == 0
+        case SMALLER: return compareResult == 1
+        case SMALLER_EQUAL: return (compareResult == 1) || (compareResult == 0)
+        case GREATER_EQUAL: return (compareResult == -1) || (compareResult == 0)
+    }
+    return false
+}
+
 
 
 

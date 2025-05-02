@@ -43,7 +43,7 @@ func AddEntry (tb *types.Table_t, fh *FileHandler, values ... any) error {
 }
 
 
-func ReadEntryIndex (tb types.Table_t, index int) ([][]byte, error) {
+func ReadEntryIndex (tb *types.Table_t, index int) ([][]byte, error) {
     fmt.Println("Reading entry")
     if tb.Entries == nil {
         return [][]byte{}, errors.New("Entries cannot be Nil")
@@ -90,6 +90,7 @@ func ReadEntryIndex (tb types.Table_t, index int) ([][]byte, error) {
 }
 
 
+
 func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byte, error) {
     fmt.Println("Reading entry")
     fmt.Println("starting at", offset)
@@ -114,7 +115,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byt
     values := make([][]byte, 0)
     currentPosition := 0
     for _, col := range tb.Columns {
-        fmt.Print(col.Type.String(), " (", col.Size, "): ")
+        fmt.Print(col.Name, ": ", col.Type.String(), " (", col.Size, "): ")
         if col.Type == types.VARCHAR {
             buff := make([]byte, 0)
             buffRead := make([]byte, 1)
