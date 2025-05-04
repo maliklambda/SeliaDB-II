@@ -1,12 +1,13 @@
 package dbms
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"os"
-    "io"
-	"encoding/binary"
 
+	"github.com/MalikL2005/Go_DB/btree"
 	"github.com/MalikL2005/Go_DB/entries"
 	"github.com/MalikL2005/Go_DB/types"
 )
@@ -45,7 +46,14 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
     }
     tb.StartEntries += colSize
 
+    fmt.Println("New Start entries", tb.StartEntries)
+
     // Move btree entries
+    // temp := int(colSize)
+    fmt.Println("\n\n\n\n\n\nReached")
+    entryList := &[]btree.Entry_t{}
+    moveBtreeEntries(fh.Root, *fh.Root, entryList, int(colSize), int(newCol.Size))
+    fmt.Println("\n\n\nEntryList:", entryList)
 
     // iterate over all entries, insert null for column (-> for later: custom default value)
     currentPos := tb.StartEntries
@@ -59,13 +67,6 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
         values = append(values, buffer)
         currentPos += uint16(entries.GetEntryLength(buffer))
         fmt.Println("\n\n\nAllocating", newCol.Size, "Bytes at", currentPos)
-        // if newCol.Type == types.VARCHAR {
-        //     AllocateInFile(fh, int64(currentPos), int64(1))
-        //     currentPos += 1
-        // } else {
-        //     AllocateInFile(fh, int64(currentPos), int64(newCol.Size))
-        //     currentPos += newCol.Size
-        // }
         bytesWritten, err := appendNullValuesToFile(fh, &newCol, int64(currentPos))
         if err != nil {
             return err
@@ -224,5 +225,82 @@ func AllocateInFile (fh *entries.FileHandler, offset int64, numBytes int64) erro
 
 
 
+func moveBtreeEntries (root **btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t, colSize int, colTypeSize int) {
+    fmt.Println("Moving btree entries")
+    *entryList = createEntryListSortedByOffset(root, current, entryList)
+    fmt.Println(entryList)
+    // for i, entry := range *entryList {
+    //     newOffset := uint32(int(entry.Value) + colSize + (colTypeSize * i))
+    // }
+    updateBtreeValues(root, current, entryList, colSize, colTypeSize)
+}
+
+
+func updateBtreeValues(root **btree.Node_t, current *btree.Node_t, entryList*[]btree.Entry_t, colSize int, colTypeSize int) error {
+    if current == nil {
+        return nil
+    }
+
+    for i, entry := range *current.Entries {
+        index := findIndex(*entryList, entry.Key)
+        if index < 0 {
+            return errors.New("entryList is not complete")
+        }
+        (*current.Entries)[i].Value = uint32(int(entry.Value) + colSize + (colTypeSize * index))
+        fmt.Println("\nNew", (*current.Entries)[i])
+    }
+
+    if current.Children == nil {
+        return nil
+    }
+    for _, child := range *current.Children {
+        updateBtreeValues(root, &child, entryList, colSize, colTypeSize)
+    }
+    return nil
+}
+
+
+func createEntryListSortedByOffset(root **btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t) []btree.Entry_t {
+    if current == nil {
+        return *entryList
+    }
+
+    for _, entry := range *current.Entries {
+        // insert in ordered fashion
+        *entryList = insertToSliceSortedByOffset(*entryList, entry)
+    }
+
+    if current.Children == nil {
+        return *entryList
+    }
+    for _, child := range *current.Children {
+        createEntryListSortedByOffset(root, &child, entryList)
+    }
+    return *entryList
+}
+
+
+func insertToSliceSortedByOffset (arr []btree.Entry_t, value btree.Entry_t) []btree.Entry_t {
+    for i, entry := range arr {
+        if entry.Value > value.Value {
+            arr = append(arr, btree.Entry_t{})
+            copy(arr[i+1:], arr[i:])
+            arr[i] = value
+            return arr
+        }
+    }
+    arr = append(arr, value)
+    return arr
+}
+
+// returns -1 if not found
+func findIndex (arr []btree.Entry_t, key uint32) int {
+    for i, entry := range arr {
+        if entry.Key == key {
+            return i
+        }
+    }
+    return -1
+}
 
 

@@ -379,8 +379,8 @@ func insertToNode (current *Node_t, entry Entry_t) error {
 func insertEntry (current *Node_t, entry Entry_t) error {
     fmt.Println("Inserting Entry")
     i := 0
-    for ; i<len(*current.Entries)-1; i++ {
-        if (*current.Entries)[i].Key >= entry.Key{
+    for ; i<len(*current.Entries); i++ {
+        if len(*current.Entries)<=i || (*current.Entries)[i].Key >= entry.Key{
             break
         }
     }
