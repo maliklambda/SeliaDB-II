@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/MalikL2005/Go_DB/entries"
-	"github.com/MalikL2005/Go_DB/types"
+	"github.com/MalikL2005/SeliaDB-II/entries"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 // Depracated! Use IterateOverEntriesInFile (better because entries don't have to be loaded into memory)
