@@ -2,7 +2,7 @@ package entries
 
 
 import(
-	"github.com/MalikL2005/Go_DB/btree"
+	"github.com/MalikL2005/SeliaDB-II/btree"
 )
 
 

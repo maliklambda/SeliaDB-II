@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/MalikL2005/Go_DB/btree"
-	"github.com/MalikL2005/Go_DB/entries"
-	"github.com/MalikL2005/Go_DB/search"
-	"github.com/MalikL2005/Go_DB/dbms"
-	"github.com/MalikL2005/Go_DB/types"
+	"github.com/MalikL2005/SeliaDB-II/btree"
+	"github.com/MalikL2005/SeliaDB-II/entries"
+	"github.com/MalikL2005/SeliaDB-II/search"
+	"github.com/MalikL2005/SeliaDB-II/dbms"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 
@@ -55,6 +55,7 @@ func main (){
     entries.AddEntry(&tb1, &fh, int32(23), "EdosWhoo", "Edos@gmail.com")
     entries.AddEntry(&tb1, &fh, int32(24), "Delcos", "Delcos2201@gmail.com")
     entries.AddEntry(&tb1, &fh, int32(22), "WuschLee", "WuschLee-Lorencius@mail.de")
+    btree.Traverse(*fh.Root, *fh.Root)
     entry, err := search.FindEntryByKey(&tb1, "email", "EdosW@gmail.com")
     entr := btree.SearchKey(fh.Root, *fh.Root, uint32(22))
     fmt.Println(entr)
@@ -67,12 +68,17 @@ func main (){
         fmt.Println(err)
         return
     }
-    fmt.Println("Before:", tb2)
-    if err = dbms.AddColumn(&fh, &tb1, "age", "INT32", 0); err != nil {
+    entr = btree.SearchKey(fh.Root, *fh.Root, uint32(23))
+    fmt.Println("here", entr)
+    entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
+    if err = dbms.AddColumn(&fh, &tb1, "age", "VARCHAR", 255, "Edos"); err != nil {
         fmt.Println(err)
         return
     }
-    search.IterateOverEntriesInFile(&fh, &tb1)
 
+    // entr = btree.SearchKey(fh.Root, *fh.Root, uint32(23))
+    // fmt.Println("here", entr)
+    // entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
+    search.IterateOverEntriesInFile(&fh, &tb1)
 }
 

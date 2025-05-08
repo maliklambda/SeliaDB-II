@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MalikL2005/Go_DB/entries"
-	"github.com/MalikL2005/Go_DB/types"
+	"github.com/MalikL2005/SeliaDB-II/entries"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 func AddTableToDatabase (db *types.Database_t, tbName string, cols []types.Column_t) error {

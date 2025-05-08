@@ -8,9 +8,9 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/MalikL2005/Go_DB/btree"
-	"github.com/MalikL2005/Go_DB/entries"
-	"github.com/MalikL2005/Go_DB/types"
+	"github.com/MalikL2005/SeliaDB-II/btree"
+	"github.com/MalikL2005/SeliaDB-II/entries"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colType string, varCharLen uint32, defaultValue any) error {

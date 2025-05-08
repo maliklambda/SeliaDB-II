@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	// "github.com/MalikL2005/Go_DB/btree"
-	"github.com/MalikL2005/Go_DB/types"
+	// "github.com/MalikL2005/SeliaDB-II/btree"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 func AddEntry (tb *types.Table_t, fh *FileHandler, values ... any) error {

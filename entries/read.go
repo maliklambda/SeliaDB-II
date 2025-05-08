@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MalikL2005/Go_DB/types"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
