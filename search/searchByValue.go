@@ -8,6 +8,7 @@ import (
 	"github.com/MalikL2005/Go_DB/types"
 )
 
+// Depracated! Use IterateOverEntriesInFile (better because entries don't have to be loaded into memory)
 func IterateOverEntries(tb *types.Table_t){
     fmt.Println("Iterating over entries!!!!!!")
     for cur := range tb.Entries.NumOfEntries {

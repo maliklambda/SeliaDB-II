@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 
 	"github.com/MalikL2005/Go_DB/btree"
 	"github.com/MalikL2005/Go_DB/entries"
 	"github.com/MalikL2005/Go_DB/types"
 )
 
-func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colType string, varCharLen uint32) error {
+func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colType string, varCharLen uint32, defaultValue any) error {
     tp, err := types.StringToType_t(colType)
     if err != nil {
         return err
@@ -48,14 +49,57 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
 
     fmt.Println("New Start entries", tb.StartEntries)
 
+    defaultValueAsType := reflect.ValueOf(defaultValue)
+    isDefaultValue := !defaultValueAsType.IsZero()
+
+    btreeMoveSize := int(newCol.Size) // necessary because varchar might change this from newCol.Size to defaultvalue + \0
+    // check if default value is varchar -> update btreeMoveSize
+    if isDefaultValue && tp == types.VARCHAR {
+        fmt.Println("defaultvalue is varchar")
+        s, ok := defaultValue.(string)
+        if !ok {
+            return errors.New("Default value should be of type varchar but is not")
+        }
+
+        if len(s) > int(newCol.Size) {
+            return errors.New(fmt.Sprintf("Defaultvalue is too long: have %d, want %d", len(s), int(newCol.Size)))
+        }
+
+        btreeMoveSize = len(s) + 1
+    } else if tp == types.VARCHAR {
+        btreeMoveSize = 1 // write only \0
+    }
+
+    // check if default value matches with column type
+    if isDefaultValue {
+        err = validateDefaultValue(tp, int(newCol.Size), defaultValue)
+        if err != nil {
+            return err
+        }
+    }
+
     // Move btree entries
     // temp := int(colSize)
     fmt.Println("\n\n\n\n\n\nReached")
     entryList := &[]btree.Entry_t{}
-    moveBtreeEntries(fh.Root, *fh.Root, entryList, int(colSize), int(newCol.Size))
-    fmt.Println("\n\n\nEntryList:", entryList)
+    err = moveBtreeEntries(fh.Root, *fh.Root, entryList, int(colSize), btreeMoveSize)
+    if err != nil {
+        return err
+    }
 
-    // iterate over all entries, insert null for column (-> for later: custom default value)
+    if isDefaultValue {       
+        // iterate over all entries, insert defaultValue for column 
+        fmt.Println("Inserting default value \n\n\n\n")
+        fmt.Println(defaultValue)
+        err = insertDefaultValue(tb, fh, newCol, defaultValue)
+        if err != nil {
+            return err
+        }
+        tb.Columns = append(tb.Columns, newCol)
+        return nil
+    }
+    
+    // iterate over all entries, insert null for column 
     currentPos := tb.StartEntries
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
@@ -225,14 +269,15 @@ func AllocateInFile (fh *entries.FileHandler, offset int64, numBytes int64) erro
 
 
 
-func moveBtreeEntries (root **btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t, colSize int, colTypeSize int) {
+func moveBtreeEntries (root **btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t, colSize int, colTypeSize int) error {
     fmt.Println("Moving btree entries")
     *entryList = createEntryListSortedByOffset(root, current, entryList)
     fmt.Println(entryList)
-    // for i, entry := range *entryList {
-    //     newOffset := uint32(int(entry.Value) + colSize + (colTypeSize * i))
-    // }
-    updateBtreeValues(root, current, entryList, colSize, colTypeSize)
+    err := updateBtreeValues(root, current, entryList, colSize, colTypeSize)
+    if err != nil {
+        return err
+    }
+    return nil
 }
 
 
@@ -301,6 +346,130 @@ func findIndex (arr []btree.Entry_t, key uint32) int {
         }
     }
     return -1
+}
+
+
+func validateDefaultValue (colType types.Type_t, colSize int, defaultValue any) error {
+    switch (colType){
+    case types.INT32:
+        _, ok := defaultValue.(int32)
+        if !ok {
+            return errors.New("Expected type to be int32. defaultvalue does not match")
+        }
+    case types.FLOAT32:
+        _, ok := defaultValue.(float32)
+        if !ok {
+            return errors.New("Expected type to be float32. defaultvalue does not match")
+        }
+    case types.BOOL:
+        _, ok := defaultValue.(bool)
+        if !ok {
+            return errors.New("Expected type to be bool. defaultvalue does not match")
+        }
+    case types.VARCHAR:
+        s, ok := defaultValue.(string)
+        if !ok {
+            return errors.New("Expected type to be varchar. defaultvalue does not match")
+        }
+        if len(s) > colSize {
+            return errors.New(fmt.Sprintf("Expected a varchar length of max %d but defaultvalue has a length of %d", colSize, len(s)))
+        }
+    }
+    return nil
+}
+
+
+
+func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types.Column_t, defaultValue any) error {
+    insertSize := newCol.Size
+    if newCol.Type == types.VARCHAR {
+        s, ok := defaultValue.(string)
+        if !ok {
+            return errors.New("Expected type to be varchar. defaultvalue does not match")
+        }
+        insertSize = uint16(len(s))+1
+    }
+    currentPos := tb.StartEntries
+    values := [][][]byte{}
+    for range tb.Entries.NumOfEntries {
+        fmt.Println("Reading entry at", currentPos)
+        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos), fh)
+        if err != nil {
+            return err
+        }
+        values = append(values, buffer)
+        currentPos += uint16(entries.GetEntryLength(buffer))
+        fmt.Println("\n\n\nWriting", insertSize, "Bytes at", currentPos)
+        fmt.Println("Writing", defaultValue)
+        bytesWritten, err := writeInFile(fh, int64(currentPos), int64(insertSize), defaultValue)
+        if err != nil {
+            return err
+        }
+        currentPos += uint16(bytesWritten)
+    }
+
+    // write default to EOF 
+    err := writeToEOF(fh, defaultValue)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+
+
+func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultValue any) (int, error){
+    err := AllocateInFile(fh, offset, numBytes)
+    if err != nil {
+        return 0, err
+    }
+
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return 0, err
+    }
+    defer f.Close()
+
+    _, err = f.Seek(offset, 0)
+    if err != nil {
+        return 0, err
+    }
+
+    err = binary.Write(f, binary.LittleEndian, defaultValue)
+    if err != nil {
+        return 0, err
+    }
+    fmt.Println("\n\n\nSuccessfully written", defaultValue, "to file")
+
+    f.Seek(offset, 0)
+    bt := make([]byte, 4)
+    f.Read(bt)
+    fmt.Println("Read this from file:", bt)
+
+    return int(numBytes), nil
+}
+
+
+
+func writeToEOF (fh *entries.FileHandler, defaultValue any) error {
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+
+    _, err = f.Seek(0, 2)
+    if err != nil {
+        return err
+    }
+
+    err = binary.Write(f, binary.LittleEndian, defaultValue)
+    if err != nil {
+        return err
+    }
+
+    return nil
 }
 
 
