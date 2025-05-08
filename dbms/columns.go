@@ -401,7 +401,7 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
         currentPos += uint16(entries.GetEntryLength(buffer))
         fmt.Println("\n\n\nWriting", insertSize, "Bytes at", currentPos)
         fmt.Println("Writing", defaultValue)
-        bytesWritten, err := writeInFile(fh, int64(currentPos), int64(insertSize), defaultValue)
+        bytesWritten, err := writeInFile(fh, int64(currentPos), int64(insertSize), defaultValue, newCol.Type)
         if err != nil {
             return err
         }
@@ -409,7 +409,7 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
     }
 
     // write default to EOF 
-    err := writeToEOF(fh, defaultValue)
+    err := writeToEOF(fh, defaultValue, newCol.Type)
     if err != nil {
         return err
     }
@@ -419,7 +419,7 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
 
 
 
-func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultValue any) (int, error){
+func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultValue any, dvType types.Type_t) (int, error){
     err := AllocateInFile(fh, offset, numBytes)
     if err != nil {
         return 0, err
@@ -434,6 +434,21 @@ func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultV
     _, err = f.Seek(offset, 0)
     if err != nil {
         return 0, err
+    }
+    
+    if dvType == types.VARCHAR {
+        fmt.Println("\n\nDFSize VARCHAR\n\n\n", len(string(defaultValue.(string))))
+        s, ok := defaultValue.(string)
+        if !ok {
+            return 0, errors.New("Expected varchar type. Type does not match")
+        }
+
+        _, err = f.Write([]byte(s+"\000"))
+        if err != nil {
+            return 0, err
+        }
+
+        return len(s)+1, nil
     }
 
     err = binary.Write(f, binary.LittleEndian, defaultValue)
@@ -452,7 +467,7 @@ func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultV
 
 
 
-func writeToEOF (fh *entries.FileHandler, defaultValue any) error {
+func writeToEOF (fh *entries.FileHandler, defaultValue any, tp types.Type_t) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
@@ -462,6 +477,14 @@ func writeToEOF (fh *entries.FileHandler, defaultValue any) error {
     _, err = f.Seek(0, 2)
     if err != nil {
         return err
+    }
+
+    if tp == types.VARCHAR {
+        _, err = f.Write([]byte(defaultValue.(string)))
+        if err != nil {
+            return err
+        }
+        return nil
     }
 
     err = binary.Write(f, binary.LittleEndian, defaultValue)
