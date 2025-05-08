@@ -99,6 +99,9 @@ func DeleteEntryByPK (tb *types.Table_t, fh *FileHandler, pk uint32) error {
     // Remove pk from btree
     // btree.Delete(fh.Root, *fh.Root, pk)
 
+    // Update Btree.values where value > entry.Value
+
+
     return nil
 }
 

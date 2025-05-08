@@ -86,9 +86,9 @@ func StringToColumnIndex (tb *types.Table_t, colName string) (int, error){
 
 
 
-func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, colName string, value any, cmpOperator types.CompareOperator, limit uint16) ([][][]byte, error){
-    fmt.Println(colName, value)
-    index, err := StringToColumnIndex(tb, colName)
+func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, cmp types.CompareObj, limit uint16) ([][][]byte, error){
+    fmt.Println(cmp.ColName, cmp.Value)
+    index, err := StringToColumnIndex(tb, cmp.ColName)
     if err != nil {
         return [][][]byte{}, err
     }
@@ -105,14 +105,14 @@ func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, colNam
             return [][][]byte{}, err
         }
         cur += uint16(entries.GetEntryLength(entry))
-        fmt.Println(entry[index])
-        fmt.Println(tb.Columns[index].Type)
+        fmt.Println("Comparing", entry, "and", cmp.Value)
         // check if entry matches condition
-        compareResult, err := types.CompareValues(tb.Columns[index].Type, entry[index], value)
+        compareResult, err := types.CompareValues(tb.Columns[index].Type, entry[index], cmp.Value)
         if err != nil {
             return [][][]byte{}, err
         }
-        if types.CompareValuesWithOperator(compareResult, cmpOperator) {
+        fmt.Println("Return result:", compareResult)
+        if types.CompareValuesWithOperator(compareResult, cmp.CmpOperator) {
             returnValues = append(returnValues, entry)
         }
         // if limit is exceeded, break out

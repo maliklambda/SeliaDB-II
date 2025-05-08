@@ -110,7 +110,7 @@ func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
     fmt.Println("Comparing values...")
     switch(tp){
     case INT32:
-        v2, ok := val2.(int)
+        v2, ok := val2.(int32)
         if !ok {
             return 0, errors.New("Type does not match value")
         }
@@ -129,7 +129,7 @@ func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
             return 0, errors.New("Type does not match value")
         }
         v1 := string(val1) // handle conversion error: missmatched types
-        return strings.Compare(v1, v2), nil
+        return strings.Compare(v1, v2+"\000"), nil
     }
     return 0, nil
 }
@@ -156,14 +156,21 @@ const (
 )
 
 
+type CompareObj struct {
+    ColName string
+    CmpOperator CompareOperator
+    Value any
+}
+
+
 
 func CompareValuesWithOperator (compareResult int, cmpOperator CompareOperator) bool {
     switch (cmpOperator){
-        case GREATER: return compareResult == -1
+        case GREATER: return compareResult == 1
         case EQUAL: return compareResult == 0
-        case SMALLER: return compareResult == 1
-        case SMALLER_EQUAL: return (compareResult == 1) || (compareResult == 0)
-        case GREATER_EQUAL: return (compareResult == -1) || (compareResult == 0)
+        case SMALLER: return compareResult == -1
+        case SMALLER_EQUAL: return (compareResult == -1) || (compareResult == 0)
+        case GREATER_EQUAL: return (compareResult == 1) || (compareResult == 0)
     }
     return false
 }
