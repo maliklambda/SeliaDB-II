@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
+    "unsafe"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/entries"
@@ -496,3 +498,101 @@ func writeToEOF (fh *entries.FileHandler, defaultValue any, tp types.Type_t) err
 }
 
 
+
+func DeleteColumn (tb * types.Table_t, fh *entries.FileHandler, colName string) error {
+    fmt.Println(*tb.Entries)
+    // check if colName is in tb.Columns
+    index, err := findColNameIndex(tb, colName)
+    if err != nil {
+        return err
+    }
+
+    // find colName in file
+    startOffset, err := findColNameInFile (tb, fh, colName, int64(index))
+    if err != nil {
+        return err
+    }
+
+    // delete colName from file
+    entries.DeleteBytesFromTo(fh, startOffset, startOffset+int64(len(colName)+1))
+
+    // update NumOfColumns
+    tb.NumOfColumns --
+    err = entries.UpdateNumOfColumns(fh, tb.NumOfColumns)
+    if err != nil {
+        return err
+    }
+
+    // update StartEntries
+
+    // update btree offsets
+    
+    return nil
+    
+}
+
+
+func findColNameIndex (tb * types.Table_t, colName string) (int, error) {
+    for i, col := range tb.Columns {
+        if strings.ToUpper(col.Name) == strings.ToUpper(colName) {
+            fmt.Println("Found colname in tb.columns")
+            return i, nil
+        }
+    }
+    return 0, errors.New(fmt.Sprintf("Column %s does not exist in table", colName))
+}
+
+
+// Finds the name of a column in file (index is the index of ColName in the table in memory)
+// Returns offset to the start of the colName string
+func findColNameInFile (tb *types.Table_t, fh *entries.FileHandler, colName string, index int64) (int64, error){
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return 0, err
+    }
+    defer f.Close()
+
+    // move to first column
+    offsetToFirstCol, err := types.GetOffsetToFirstColumn(tb)
+    if err != nil {
+        return 0, err
+    }
+
+    _, err = f.Seek(offsetToFirstCol, 0)
+    if err != nil {
+        return 0, err
+    }
+
+    var bufferCol types.Column_t
+    for range index {
+        pos, _ := f.Seek(0, 1)
+        fmt.Println("current pos:", pos)
+        bufferCol, err = entries.ReadColumnFromFile(f, pos)
+        if err != nil {
+            return 0, err
+        }
+        fmt.Println("current buffer:", bufferCol)
+    }
+
+    pos, _ := f.Seek(0, 1)
+    if string(bufferCol.Name) == colName {
+        fmt.Println("Must delete column at this offset:", pos)
+        expectedLength := bufferCol.GetColSize()
+        fmt.Println("Deleting", expectedLength, "bytes from file")
+        buf := make([]byte, expectedLength)
+        actual, err := f.Read(buf)
+        if actual != expectedLength {
+            return 0, errors.New("Wff happened there?")
+        }
+        if err != nil {
+            return 0, err
+        }
+        fmt.Println("Expecting", []byte(colName+"\000"), "to be the same as", buf)
+        return pos, nil
+    } else {
+        fmt.Println("Buffer and colname dont match.")
+        return 0, errors.New(fmt.Sprintf("Buffer (%s) and colname (%s) are expected to be the same", string(buffer), colName))
+    }
+
+    // return 0, nil
+}

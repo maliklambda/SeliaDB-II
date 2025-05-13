@@ -9,6 +9,7 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
+// data may be any as there is a type assertion. Future ToDo: change so that all types can be read from file via one method
 func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
     f, err := os.Open(fh.Path)
     if err != nil {
@@ -32,7 +33,7 @@ func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
         }
         
 
-        bytes, err := ReadStringFromFile (f, 10)
+        bytes, err := ReadStringFromFile (f, types.MAX_TABLE_NAME_LENGTH)
         if err != nil {
             return err
         }
@@ -94,7 +95,7 @@ func ReadStringFromFile (f *os.File, MAX_LEN int) ([]byte, error) {
     for range MAX_LEN {
         _, err := f.Read(buf)
         if err != nil && err.Error() == "EOF" {
-            break
+        return bytes, nil
         } else if err != nil {
             return nil, err
         }

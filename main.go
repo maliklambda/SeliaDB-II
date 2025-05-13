@@ -18,7 +18,7 @@ func main (){
         Size: 4,
     }
     col2 := types.Column_t {
-        Name: "column2",
+        Name: "name",
         Type: types.VARCHAR,
         Size: 255,
     }
@@ -55,6 +55,7 @@ func main (){
     entries.AddEntry(&tb1, &fh, int32(23), "EdosWhoo", "Edos@gmail.com")
     entries.AddEntry(&tb1, &fh, int32(24), "Delcos", "Delcos2201@gmail.com")
     entries.AddEntry(&tb1, &fh, int32(22), "WuschLee", "WuschLee-Lorencius@mail.de")
+    entries.AddEntry(&tb1, &fh, int32(25), "Dadi", "dadan.cheng@woo-mail.de")
     btree.Traverse(*fh.Root, *fh.Root)
     entry, err := search.FindEntryByKey(&tb1, "email", "EdosW@gmail.com")
     entr := btree.SearchKey(fh.Root, *fh.Root, uint32(22))
@@ -71,14 +72,28 @@ func main (){
     entr = btree.SearchKey(fh.Root, *fh.Root, uint32(23))
     fmt.Println("here", entr)
     entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
-    if err = dbms.AddColumn(&fh, &tb1, "age", "VARCHAR", 255, "Edos"); err != nil {
+    if err = dbms.AddColumn(&fh, &tb1, "age", "INT32", 0, int32(10)); err != nil {
         fmt.Println(err)
         return
     }
-
-    // entr = btree.SearchKey(fh.Root, *fh.Root, uint32(23))
-    // fmt.Println("here", entr)
-    // entries.ReadEntryFromFile(&tb1, int(entr.Value), &fh)
     search.IterateOverEntriesInFile(&fh, &tb1)
+
+    entries_bt, err := search.FindEntryWhereCondition(&fh, &tb1, types.CompareObj{ColName: "age", CmpOperator: types.GREATER_EQUAL, Value: int32(10)}, 5)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println(entries_bt)
+
+    etriesFiltered := btree.TraverseWithFilter(*fh.Root, *fh.Root, &([]btree.Entry_t{}), btree.CompareBtreeKeys, types.SMALLER, uint32(200), btree.PrintEntry)
+    fmt.Println(etriesFiltered)
+
+
+    // err = dbms.DeleteColumn(&tb1, &fh, "age")
+    // if err != nil {
+    //     fmt.Println(err)
+    //     return
+    // }
+    fmt.Println(tb1)
 }
 

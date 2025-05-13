@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+    "unsafe"
 )
 
 type Database_t struct {
@@ -177,4 +178,11 @@ func CompareValuesWithOperator (compareResult int, cmpOperator CompareOperator) 
 
 
 
+func GetOffsetToFirstColumn (tb *Table_t) (int64, error){
+    offset := int(unsafe.Sizeof(tb.NumOfColumns)) // NumOfColumns uint32
+    offset += len([]byte(tb.Name+"\000")) // Name string
+    offset += int(unsafe.Sizeof(tb.StartEntries)) // StartEntries uint16
+    offset += int(unsafe.Sizeof(tb.OffsetToLastEntry)) // OffsetToLastEntry uint64
+    return int64(offset), nil
+}
 
