@@ -1,7 +1,6 @@
 package search
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/MalikL2005/SeliaDB-II/entries"
@@ -47,7 +46,7 @@ func IterateOverEntriesInFile (fh *entries.FileHandler, tb *types.Table_t) error
 
 func FindEntryByKey (tb *types.Table_t, colName string, value any) ([][]byte, error) {
     fmt.Println(colName, value)
-    index, err := StringToColumnIndex(tb, colName)
+    index, err := entries.StringToColumnIndex(tb, colName)
     if err != nil {
         return [][]byte{}, err
     }
@@ -75,20 +74,10 @@ func FindEntryByKey (tb *types.Table_t, colName string, value any) ([][]byte, er
 
 
 
-func StringToColumnIndex (tb *types.Table_t, colName string) (int, error){
-    for i := range tb.Columns {
-        if tb.Columns[i].Name == colName {
-            return i, nil
-        }
-    }
-    return 0, errors.New(fmt.Sprintf("Column %s does not exist", colName))
-}
-
-
 
 func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, cmp types.CompareObj, limit uint16) ([][][]byte, error){
     fmt.Println(cmp.ColName, cmp.Value)
-    index, err := StringToColumnIndex(tb, cmp.ColName)
+    index, err := entries.StringToColumnIndex(tb, cmp.ColName)
     if err != nil {
         return [][][]byte{}, err
     }

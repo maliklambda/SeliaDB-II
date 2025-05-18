@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-    "unsafe"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/entries"
@@ -27,7 +26,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
 
     fmt.Println(tp, "size", size)
     fmt.Println(tb.StartEntries)
-    if existsColumnName(tb, colName){
+    if entries.ExistsColumnName(tb, colName){
         return errors.New("Column name already exists")
     }
     newCol := types.Column_t{
@@ -63,7 +62,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
             return errors.New("Default value should be of type varchar but is not")
         }
 
-        if len(s) > int(newCol.Size) {
+       if len(s) > int(newCol.Size) {
             return errors.New(fmt.Sprintf("Defaultvalue is too long: have %d, want %d", len(s), int(newCol.Size)))
         }
 
@@ -74,7 +73,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
 
     // check if default value matches with column type
     if isDefaultValue {
-        err = validateDefaultValue(tp, int(newCol.Size), defaultValue)
+        err = entries.ValidateTypeValue(tp, int(newCol.Size), defaultValue)
         if err != nil {
             return err
         }
@@ -91,7 +90,6 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
 
     if isDefaultValue {       
         // iterate over all entries, insert defaultValue for column 
-        fmt.Println("Inserting default value \n\n\n\n")
         fmt.Println(defaultValue)
         err = insertDefaultValue(tb, fh, newCol, defaultValue)
         if err != nil {
@@ -165,15 +163,6 @@ func appendNullValuesToFile (fh *entries.FileHandler, col *types.Column_t, curre
     return int(col.Size), nil
 }
 
-
-func existsColumnName (tb *types.Table_t, colName string) bool {
-    for _, column := range tb.Columns {
-        if column.Name == colName {
-            return true
-        }
-    }
-    return false
-}
 
 
 func insertColumnToFile (fh *entries.FileHandler, tb *types.Table_t, col *types.Column_t) error {
@@ -351,34 +340,6 @@ func findIndex (arr []btree.Entry_t, key uint32) int {
 }
 
 
-func validateDefaultValue (colType types.Type_t, colSize int, defaultValue any) error {
-    switch (colType){
-    case types.INT32:
-        _, ok := defaultValue.(int32)
-        if !ok {
-            return errors.New("Expected type to be int32. defaultvalue does not match")
-        }
-    case types.FLOAT32:
-        _, ok := defaultValue.(float32)
-        if !ok {
-            return errors.New("Expected type to be float32. defaultvalue does not match")
-        }
-    case types.BOOL:
-        _, ok := defaultValue.(bool)
-        if !ok {
-            return errors.New("Expected type to be bool. defaultvalue does not match")
-        }
-    case types.VARCHAR:
-        s, ok := defaultValue.(string)
-        if !ok {
-            return errors.New("Expected type to be varchar. defaultvalue does not match")
-        }
-        if len(s) > colSize {
-            return errors.New(fmt.Sprintf("Expected a varchar length of max %d but defaultvalue has a length of %d", colSize, len(s)))
-        }
-    }
-    return nil
-}
 
 
 
@@ -591,7 +552,7 @@ func findColNameInFile (tb *types.Table_t, fh *entries.FileHandler, colName stri
         return pos, nil
     } else {
         fmt.Println("Buffer and colname dont match.")
-        return 0, errors.New(fmt.Sprintf("Buffer (%s) and colname (%s) are expected to be the same", string(buffer), colName))
+        return 0, errors.New(fmt.Sprintf("Buffer (%s) and colname (%s) are expected to be the same", string(bufferCol.Name), colName))
     }
 
     // return 0, nil

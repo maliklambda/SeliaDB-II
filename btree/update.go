@@ -4,7 +4,7 @@ import(
     "fmt"
 )
 
-func UpdateBtreeOffset (root **Node_t, current *Node_t, offsetValue int64, fromOffsetOnwards uint32) {
+func UpdateBtreeOffset (root *Node_t, current *Node_t, offsetValue int64, fromOffsetOnwards uint32) {
     if current == nil {
         return
     }
