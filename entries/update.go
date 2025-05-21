@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-    "os"
+	"os"
 
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
@@ -15,7 +15,7 @@ func UpdateEntriesWhere (tb *types.Table_t, fh *FileHandler, cmpObj types.Compar
     }
 
     if !ExistsColumnName(tb, colName){
-        return errors.New(fmt.Sprintf("Column %s does not exist", colName))
+        return errors.New(fmt.Sprintf("Column %s (set column) does not exist", colName))
     }
     
     colIndex, err := StringToColumnIndex(tb, colName)
@@ -44,6 +44,8 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
     }
 
     curOffset := tb.StartEntries
+    newOffsetsBtree := make([]types.UpdateOffsetDict, 0)
+    var numNewBytes int32
     for range tb.Entries.NumOfEntries {
         entry, err := ReadEntryFromFile(tb, int(curOffset), fh)
         if err != nil {
@@ -59,15 +61,27 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
         if types.CompareValuesWithOperator(compareResult, cmp.CmpOperator) {
             fmt.Println("Condition matches!!!")
             fmt.Println("current", curOffset)
-            offsetToProperty := getEntryLengthUpToIndex(tb, entry, colIndex)
-            fmt.Println("writing", newValue, "at", int64(int(curOffset) + offsetToProperty))
-            err = updateEntry(fh, tb, int64(int(curOffset) + offsetToProperty), colIndex, newValue)
+            offsetToProperty := getEntryLengthUpToIndex(entry, colIndex)
+            fmt.Println("writing", newValue, "at", int32(curOffset) + offsetToProperty)
+            numNewBytes, err = updateEntry(fh, tb, &entry, int64(int32(curOffset) + offsetToProperty), colIndex, newValue)
             if err != nil {
                 fmt.Println("ERR:",err)
                 return err
             }
         }
-        curOffset += uint16(GetEntryLength(entry))
+        curOffset += uint16(GetEntryLength(entry)) + uint16(numNewBytes)
+        if numNewBytes != 0 {
+            newOffsetsBtree = append(newOffsetsBtree, types.UpdateOffsetDict{
+                FromOffsetOnwards: uint32(curOffset),
+                NumNewBytes: int32(numNewBytes),
+            })
+        }
+    }
+    fmt.Println("\n\n\n\n")
+    fmt.Println(newOffsetsBtree)
+    if len(newOffsetsBtree) > 0 {
+        fmt.Println("Must update btree entries")
+        return errors.New("Not implemented yet.")
     }
     return nil
 }
@@ -75,50 +89,58 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
 
 
 
-func updateEntry (fh * FileHandler, tb * types.Table_t, offset int64, colIndex int, newValue any) error {
+func updateEntry (fh * FileHandler, tb * types.Table_t, entry *[][]byte, offset int64, colIndex int, newValue any) (int32, error) {
     fmt.Println("Updating entry")
 
     if tb.Columns[colIndex].Type == types.VARCHAR {
+        s, ok := newValue.(string)
+        if !ok {
+            return 0, errors.New("Types do not match. Expexted VARCHAR")
+        }
         fmt.Println("Have to deal with varchar length ...")
-        return errors.New("Not implemented yet.")
+        fmt.Println(len((*entry)[colIndex]))
+        fmt.Println((*entry)[colIndex])
+        fmt.Println(string((*entry)[colIndex]))
+        fmt.Println(len(s)+1)
+        return updateEntryVarchar(fh, tb, entry, offset, colIndex, s)
     }
 
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
-        return err
+        return 0, err
     }
     defer f.Close()
 
     err = ValidateTypeValue(tb.Columns[colIndex].Type, int(tb.Columns[colIndex].Size), newValue)
     if err != nil {
-        return err
+        return 0, err
     }
 
     pos, err := f.Seek(offset, 0)
     if err != nil {
-        return err
+        return 0, err
     }
 
     fmt.Println("current pos:", pos)
 
     err = binary.Write(f, binary.LittleEndian, newValue)
     if err != nil {
-        return err
+        return 0, err
     }
 
     fmt.Println("This worked!!!!")
 
-    return nil
+    return 0, nil
 }
 
 
 
-func getEntryLengthUpToIndex (tb *types.Table_t, entry [][]byte, index int) int {
+func getEntryLengthUpToIndex (entry [][]byte, index int) int32 {
     length := 0
-    for i := 0; i<index; i++ {
+    for i := range index {
         length += len(entry[i])
     }
-    return length
+    return int32(length)
 }
 
 
@@ -174,6 +196,43 @@ func ExistsColumnName (tb *types.Table_t, colName string) bool {
     }
     return false
 }
+
+
+
+func updateEntryVarchar (fh * FileHandler, tb * types.Table_t, entry *[][]byte, offset int64, colIndex int, newString string) (int32, error) {
+    if len((*entry)[colIndex]) < len(newString)+1 {
+        fmt.Println("Must allocate", len(newString)+1-len((*entry)[colIndex]), "new bytes on file, at offset", offset+int64(len((*entry)[colIndex])))
+        newAllocatedBytes := len(newString)+1 - len((*entry)[colIndex])
+        err := types.AllocateInFile(fh.Path, offset+int64(len((*entry)[colIndex])), int64(newAllocatedBytes))
+        if err != nil {
+            return 0, err
+        }
+        err = fh.WriteStringToFile(offset, newString)
+        if err != nil {
+            return 0, err
+        }
+        return int32(newAllocatedBytes), nil
+
+    } else if len((*entry)[colIndex]) > len(newString)+1 {
+        numFreedBytes := len((*entry)[colIndex]) - (len(newString)+1)
+        fmt.Println("Must deallocate", numFreedBytes, "many bytes from file, right of offset", offset)
+        err := types.DeallocateInFile(fh.Path, offset,  int64(numFreedBytes))
+        if err != nil {
+            return 0, err
+        }
+        err = fh.WriteStringToFile(offset, newString)
+        if err != nil {
+            return 0, err
+        }
+
+        return int32(numFreedBytes * -1), nil
+    }
+
+    // no bytes allocated or freed on file
+    // len((*entry)[colIndex]) == len(newString) +1
+    return 0, nil
+}
+
 
 
 

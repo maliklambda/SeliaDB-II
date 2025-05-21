@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -150,13 +149,13 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
 // Returns number of bytes written and error
 func appendNullValuesToFile (fh *entries.FileHandler, col *types.Column_t, currentPos int64) (int, error) {
     if col.Type == types.VARCHAR {
-        err := AllocateInFile(fh, int64(currentPos), int64(1))
+        err := types.AllocateInFile(fh.Path, int64(currentPos), int64(1))
         if err != nil {
             return 0, err
         }
         return 1, nil
     }
-    err := AllocateInFile(fh, int64(currentPos), int64(col.Size))
+    err := types.AllocateInFile(fh.Path, int64(currentPos), int64(col.Size))
     if err != nil {
         return 0, err
     }
@@ -172,7 +171,7 @@ func insertColumnToFile (fh *entries.FileHandler, tb *types.Table_t, col *types.
     }
     defer f.Close()
 
-    if err = AllocateInFile(fh, int64(tb.StartEntries), int64(col.GetColSize())); err != nil {
+    if err = types.AllocateInFile(fh.Path, int64(tb.StartEntries), int64(col.GetColSize())); err != nil {
         return err
     }
     fmt.Println(f)
@@ -212,51 +211,6 @@ func WriteColumnAtOffset (fh *entries.FileHandler, col *types.Column_t, offset i
 
     return nil
 }
-
-
-
-// allocates numBytes many Bytes in file from offset onwards
-func AllocateInFile (fh *entries.FileHandler, offset int64, numBytes int64) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
-    if err != nil {
-        return err
-    }
-
-    tmp, err := os.OpenFile("./tmp.tb", os.O_RDWR|os.O_CREATE, 0644)
-    if err != nil {
-        return err
-    }
-    defer tmp.Close()
-    // defer os.Remove(tmp.Name())
-    
-    if _, err := io.CopyN(tmp, f, offset); err != nil {
-        return err
-    }
-
-    _, err = f.Seek(offset, 0)
-    if err != nil {
-        return err
-    }
-    
-    _, err = tmp.Seek(offset + numBytes, 0)
-    if err != nil {
-        return err
-    }
-
-    if _, err := io.Copy(tmp, f); err != nil {
-        return err
-    }
-
-    f.Close()
-
-    err = os.Rename(tmp.Name(), fh.Path)
-    if err != nil {
-        return err
-    }
-    
-    return nil
-}
-
 
 
 
@@ -383,7 +337,7 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
 
 
 func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultValue any, dvType types.Type_t) (int, error){
-    err := AllocateInFile(fh, offset, numBytes)
+    err := types.AllocateInFile(fh.Path, offset, numBytes)
     if err != nil {
         return 0, err
     }

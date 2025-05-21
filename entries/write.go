@@ -267,6 +267,7 @@ func UpdateStartEntries (fh *FileHandler, newStartEntries uint16) error {
 }
 
 
+// this works with all fixed sized variables (NOT with strings, etc.) -> see WriteStringToFile()
 func WriteDataToFile (fh *FileHandler, offset int64, value any) error {
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
@@ -274,12 +275,10 @@ func WriteDataToFile (fh *FileHandler, offset int64, value any) error {
     }
     defer f.Close()
 
-    _, err = f.Seek(offset, 1)
+    _, err = f.Seek(offset, 1) // if bug occurs, change to (offset, 0)
     if err != nil {
         return err
     }
-
-    // copy rest of file
 
     err = binary.Write(f, binary.LittleEndian, value)
     if err != nil {
@@ -288,6 +287,33 @@ func WriteDataToFile (fh *FileHandler, offset int64, value any) error {
     return nil
 }
 
+
+
+// expects string without \000 at the end
+func (fh * FileHandler) WriteStringToFile (offset int64, s string) error {
+    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        fmt.Println("err 1")
+        return err
+    }
+    defer f.Close()
+
+    _, err = f.Seek(offset, 0)
+    if err != nil {
+        fmt.Println("err 2")
+        return err
+    }
+
+    fmt.Println("writing", len([]byte(s+"\000")))
+    fmt.Println(s+"\000")
+    _, err = f.Write([]byte(s + "\000"))
+    if err != nil {
+        fmt.Println("here")
+        return err
+    }
+    return nil
+
+}
 
 
 

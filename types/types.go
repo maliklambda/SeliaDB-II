@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
     "unsafe"
+    "os"
+    "io"
 )
 
 type Database_t struct {
@@ -185,4 +187,96 @@ func GetOffsetToFirstColumn (tb *Table_t) (int64, error){
     offset += int(unsafe.Sizeof(tb.OffsetToLastEntry)) // OffsetToLastEntry uint64
     return int64(offset), nil
 }
+
+// datastruct that is thrown into a list in order to update the pointers in the btree
+type UpdateOffsetDict struct {
+    FromOffsetOnwards uint32
+    NumNewBytes int32
+}
+
+
+
+// allocates numBytes many Bytes in file from offset onwards
+func AllocateInFile (path string, offset, numBytes int64) error {
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+
+    tmp, err := os.OpenFile("./tmp.tb", os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer tmp.Close()
+    // defer os.Remove(tmp.Name())
+    
+    if _, err := io.CopyN(tmp, f, offset); err != nil {
+        return err
+    }
+
+    _, err = f.Seek(offset, 0)
+    if err != nil {
+        return err
+    }
+    
+    _, err = tmp.Seek(offset + numBytes, 0)
+    if err != nil {
+        return err
+    }
+
+    if _, err := io.Copy(tmp, f); err != nil {
+        return err
+    }
+
+    f.Close()
+
+    err = os.Rename(tmp.Name(), path)
+    if err != nil {
+        return err
+    }
+    
+    return nil
+}
+
+
+
+func DeallocateInFile (path string, offset, numBytes int64) error {
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+
+    tmp, err := os.OpenFile("./tmp.tb", os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer tmp.Close()
+    // defer os.Remove(tmp.Name())
+    
+    if _, err := io.CopyN(tmp, f, offset); err != nil {
+        return err
+    }
+
+    _, err = f.Seek(offset + numBytes, 0)
+    if err != nil {
+        return err
+    }
+
+    if _, err := io.Copy(tmp, f); err != nil {
+        return err
+    }
+
+    f.Close()
+
+    err = os.Rename(tmp.Name(), path)
+    if err != nil {
+        return err
+    }
+    
+    return nil
+}
+
+
 
