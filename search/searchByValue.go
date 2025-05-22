@@ -75,13 +75,17 @@ func FindEntryByKey (tb *types.Table_t, colName string, value any) ([][]byte, er
 
 
 
-func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, cmp types.CompareObj, limit uint16) ([][][]byte, error){
-    fmt.Println(cmp.ColName, cmp.Value)
-    index, err := entries.StringToColumnIndex(tb, cmp.ColName)
-    if err != nil {
-        return [][][]byte{}, err
+func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, limit uint16, cmpObjs ... types.CompareObj) ([][][]byte, error){
+    indices := make([]int, len(cmpObjs))
+    for i, cmp := range cmpObjs {
+        index, err := entries.StringToColumnIndex(tb, cmp.ColName)
+        if err != nil {
+            return [][][]byte{}, err
+        }
+        fmt.Println(tb.Columns[index])
+        indices[i] = index
     }
-    fmt.Println(tb.Columns[index])
+
     if limit < 1 {
         limit = 1
     }
@@ -94,15 +98,19 @@ func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, cmp ty
             return [][][]byte{}, err
         }
         cur += uint16(entries.GetEntryLength(entry))
-        fmt.Println("Comparing", entry, "and", cmp.Value)
-        // check if entry matches condition
-        compareResult, err := types.CompareValues(tb.Columns[index].Type, entry[index], cmp.Value)
-        if err != nil {
-            return [][][]byte{}, err
-        }
-        fmt.Println("Return result:", compareResult)
-        if types.CompareValuesWithOperator(compareResult, cmp.CmpOperator) {
-            returnValues = append(returnValues, entry)
+        for i, cmp := range cmpObjs {
+            fmt.Println("Comparing", entry, "and", cmp.Value)
+            // check if entry matches condition
+            compareResult, err := types.CompareValues(tb.Columns[indices[i]].Type, entry[indices[i]], cmp.Value)
+            if err != nil {
+                return [][][]byte{}, err
+            }
+            if !types.CompareValuesWithOperator(compareResult, cmp.CmpOperator) {
+                break
+            }
+            if i == len(cmpObjs) -1 {
+                returnValues = append(returnValues, entry)
+            }
         }
         // if limit is exceeded, break out
         if len(returnValues) >= int(limit) {
