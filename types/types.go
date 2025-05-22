@@ -188,10 +188,10 @@ func GetOffsetToFirstColumn (tb *Table_t) (int64, error){
     return int64(offset), nil
 }
 
-// datastruct that is thrown into a list in order to update the pointers in the btree
-type UpdateOffsetDict struct {
-    FromOffsetOnwards uint32
-    NumNewBytes int32
+// datastruct that is used to update the pointers in the btree
+type UpdateOffsetList struct {
+    Current int32
+    UpdateDict map[int] int32 // maps FromOffsetOnwards (uint32) to NumNewBytes (int32)
 }
 
 

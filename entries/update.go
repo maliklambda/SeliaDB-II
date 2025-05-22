@@ -1,13 +1,15 @@
 package entries
 
 import (
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"os"
+"encoding/binary"
+"errors"
+"fmt"
+"os"
 
-	"github.com/MalikL2005/SeliaDB-II/types"
+"github.com/MalikL2005/SeliaDB-II/btree"
+"github.com/MalikL2005/SeliaDB-II/types"
 )
+
 
 func UpdateEntriesWhere (tb *types.Table_t, fh *FileHandler, cmpObj types.CompareObj, colName string, newValue any) error {
     if !ExistsColumnName(tb, cmpObj.ColName){
@@ -17,7 +19,7 @@ func UpdateEntriesWhere (tb *types.Table_t, fh *FileHandler, cmpObj types.Compar
     if !ExistsColumnName(tb, colName){
         return errors.New(fmt.Sprintf("Column %s (set column) does not exist", colName))
     }
-    
+
     colIndex, err := StringToColumnIndex(tb, colName)
     if err != nil {
         return err
@@ -27,9 +29,9 @@ func UpdateEntriesWhere (tb *types.Table_t, fh *FileHandler, cmpObj types.Compar
     if err != nil {
         return err
     }
-    
+
     return nil
-    
+
 }
 
 
@@ -44,7 +46,8 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
     }
 
     curOffset := tb.StartEntries
-    newOffsetsBtree := make([]types.UpdateOffsetDict, 0)
+    newOffsetsBtree := types.UpdateOffsetList{}
+    newOffsetsBtree.UpdateDict = make(map[int]int32)
     var numNewBytes int32
     for range tb.Entries.NumOfEntries {
         entry, err := ReadEntryFromFile(tb, int(curOffset), fh)
@@ -68,20 +71,21 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
                 fmt.Println("ERR:",err)
                 return err
             }
+
+            fmt.Println("For all entries starting at/after", curOffset+uint16(GetEntryLength(entry))- uint16(newOffsetsBtree.Current), ": Add this many bytes", numNewBytes)
+            fmt.Println("But actually add", numNewBytes + newOffsetsBtree.Current)
+            if numNewBytes != 0 {
+                newOffsetsBtree.UpdateDict[int(curOffset)+GetEntryLength(entry)-int(newOffsetsBtree.Current)] = int32(numNewBytes) + newOffsetsBtree.Current
+                newOffsetsBtree.Current += numNewBytes
+            }
         }
         curOffset += uint16(GetEntryLength(entry)) + uint16(numNewBytes)
-        if numNewBytes != 0 {
-            newOffsetsBtree = append(newOffsetsBtree, types.UpdateOffsetDict{
-                FromOffsetOnwards: uint32(curOffset),
-                NumNewBytes: int32(numNewBytes),
-            })
-        }
     }
-    fmt.Println("\n\n\n\n")
     fmt.Println(newOffsetsBtree)
-    if len(newOffsetsBtree) > 0 {
+    if len(newOffsetsBtree.UpdateDict) > 0 {
         fmt.Println("Must update btree entries")
-        return errors.New("Not implemented yet.")
+        btree.UpdateBtreeOffsetMap(*fh.Root, &newOffsetsBtree.UpdateDict)
+        return nil
     }
     return nil
 }
@@ -102,7 +106,7 @@ func updateEntry (fh * FileHandler, tb * types.Table_t, entry *[][]byte, offset 
         fmt.Println((*entry)[colIndex])
         fmt.Println(string((*entry)[colIndex]))
         fmt.Println(len(s)+1)
-        return updateEntryVarchar(fh, tb, entry, offset, colIndex, s)
+        return updateEntryVarchar(fh, entry, offset, colIndex, s)
     }
 
     f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
@@ -199,7 +203,7 @@ func ExistsColumnName (tb *types.Table_t, colName string) bool {
 
 
 
-func updateEntryVarchar (fh * FileHandler, tb * types.Table_t, entry *[][]byte, offset int64, colIndex int, newString string) (int32, error) {
+func updateEntryVarchar (fh * FileHandler, entry *[][]byte, offset int64, colIndex int, newString string) (int32, error) {
     if len((*entry)[colIndex]) < len(newString)+1 {
         fmt.Println("Must allocate", len(newString)+1-len((*entry)[colIndex]), "new bytes on file, at offset", offset+int64(len((*entry)[colIndex])))
         newAllocatedBytes := len(newString)+1 - len((*entry)[colIndex])
