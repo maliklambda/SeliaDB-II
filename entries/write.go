@@ -93,7 +93,7 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
     if err != nil {
         return err
     }
-    err = DeleteAllEntries(tb, fh)
+    err = DeleteAllEntries(tb)
     if err != nil {
         fmt.Println("Error deleting entries:", err)
         return err
@@ -105,7 +105,7 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
         fmt.Println("Priting entries")
         for i := range tb.Entries.NumOfEntries {
             fmt.Println(tb.Entries.Values[i])
-            AppendEntryToFile(tb, fh, tb.Entries.Values[i])
+            AppendEntryToFile(tb, tb.Entries.Values[i])
             fmt.Println("new offset:", tb.OffsetToLastEntry)
         }
     }
@@ -140,11 +140,11 @@ func (fh FileHandler) WriteColumnToFile (col types.Column_t, offset int64) error
 }
 
 
-func AppendEntryToFile (tb *types.Table_t, fh *FileHandler, entry []byte) error {
+func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
     fmt.Println("Writing entry to file")
     fmt.Println(entry)
-    fmt.Println(fh.Path)
-    f, err := os.OpenFile(fh.Path, os.O_RDWR, 0644)
+    fmt.Println(tb.MetaData.FilePath)
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR, 0644)
     if err != nil {
         return err
     }
@@ -162,12 +162,20 @@ func AppendEntryToFile (tb *types.Table_t, fh *FileHandler, entry []byte) error 
     fmt.Println("StartEntries:", uint64(tb.StartEntries))
     fmt.Println("num entries", tb.Entries.NumOfEntries)
     fmt.Println(tb.Entries.Values)
-    // take id as first column
+    // insert into btree
     val := binary.LittleEndian.Uint32(entry)
 
-    // insert into btree
-    fmt.Println("Inserting offset:", pos, "Key:", val)
-    InsertToBtree(fh.Root, val, uint32(pos))
+    // iterate over indices
+    for i, index := range tb.Indeces {
+        fmt.Println(index)
+        fmt.Println(tb.Columns[i].Type)
+        // fmt.Println("Inserting offset:", pos, "Key:", val)
+        // node := (*btree.Node_t)(unsafe.Pointer(index.Root))
+        node := btree.UnsafePAnyToPNode_t(index.Root)
+        InsertToBtree(&node, int32(val), uint32(pos), types.INT32)
+        
+    }
+
     _, err = f.Write(entry)
     if err != nil {
         return err
@@ -176,14 +184,14 @@ func AppendEntryToFile (tb *types.Table_t, fh *FileHandler, entry []byte) error 
 
     fmt.Println(tb.OffsetToLastEntry)
     fmt.Println("Wrote entry successfully")
-    UpdateOffsetLastEntry(fh, uint16(len(entry)))
+    UpdateOffsetLastEntry(tb.MetaData.FilePath, uint16(len(entry)))
     return nil
 }
 
 
 
-func UpdateOffsetLastEntry (fh *FileHandler, newLastEntryOffset uint16) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func UpdateOffsetLastEntry (path string, newLastEntryOffset uint16) error {
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
@@ -221,8 +229,8 @@ func UpdateOffsetLastEntry (fh *FileHandler, newLastEntryOffset uint16) error {
 
 
 
-func UpdateNumOfColumns (fh *FileHandler, newNumOfColumns uint32) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func UpdateNumOfColumns (path string, newNumOfColumns uint32) error {
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/entries"
@@ -35,7 +34,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
     }
     fmt.Println("New column:", newCol)
     insertColumnToFile(fh, tb, &newCol)
-    if err = entries.UpdateNumOfColumns(fh, tb.NumOfColumns+1); err != nil {
+    if err = entries.UpdateNumOfColumns(tb.MetaData.FilePath, tb.NumOfColumns+1); err != nil {
         return err
     }
 
@@ -103,7 +102,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
         fmt.Println("Reading entry at", currentPos)
-        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos), fh)
+        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
             return err
         }
@@ -284,7 +283,7 @@ func insertToSliceSortedByOffset (arr []btree.Entry_t, value btree.Entry_t) []bt
 }
 
 // returns -1 if not found
-func findIndex (arr []btree.Entry_t, key uint32) int {
+func findIndex (arr []btree.Entry_t, key any) int {
     for i, entry := range arr {
         if entry.Key == key {
             return i
@@ -310,7 +309,7 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
         fmt.Println("Reading entry at", currentPos)
-        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos), fh)
+        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
             return err
         }
@@ -414,26 +413,26 @@ func writeToEOF (fh *entries.FileHandler, defaultValue any, tp types.Type_t) err
 
 
 
-func DeleteColumn (tb * types.Table_t, fh *entries.FileHandler, colName string) error {
+func DeleteColumn (tb * types.Table_t, colName string) error {
     fmt.Println(*tb.Entries)
     // check if colName is in tb.Columns
-    index, err := findColNameIndex(tb, colName)
+    index, err := entries.FindColNameIndex(tb, colName)
     if err != nil {
         return err
     }
 
     // find colName in file
-    startOffset, err := findColNameInFile (tb, fh, colName, int64(index))
+    startOffset, err := findColNameInFile (tb, colName, int64(index))
     if err != nil {
         return err
     }
 
     // delete colName from file
-    entries.DeleteBytesFromTo(fh, startOffset, startOffset+int64(len(colName)+1))
+    entries.DeleteBytesFromTo(tb.MetaData.FilePath, startOffset, startOffset+int64(len(colName)+1))
 
     // update NumOfColumns
     tb.NumOfColumns --
-    err = entries.UpdateNumOfColumns(fh, tb.NumOfColumns)
+    err = entries.UpdateNumOfColumns(tb.MetaData.FilePath, tb.NumOfColumns)
     if err != nil {
         return err
     }
@@ -447,21 +446,10 @@ func DeleteColumn (tb * types.Table_t, fh *entries.FileHandler, colName string) 
 }
 
 
-func findColNameIndex (tb * types.Table_t, colName string) (int, error) {
-    for i, col := range tb.Columns {
-        if strings.ToUpper(col.Name) == strings.ToUpper(colName) {
-            fmt.Println("Found colname in tb.columns")
-            return i, nil
-        }
-    }
-    return 0, errors.New(fmt.Sprintf("Column %s does not exist in table", colName))
-}
-
-
 // Finds the name of a column in file (index is the index of ColName in the table in memory)
 // Returns offset to the start of the colName string
-func findColNameInFile (tb *types.Table_t, fh *entries.FileHandler, colName string, index int64) (int64, error){
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func findColNameInFile (tb *types.Table_t, colName string, index int64) (int64, error){
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return 0, err
     }

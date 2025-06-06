@@ -58,13 +58,23 @@ func CompareBtreeValues (entry *Entry_t, cmpVal uint32, cmpOperator types.Compar
 }
 
 
-func CompareBtreeKeys (entry *Entry_t, cmpVal uint32, cmpOperator types.CompareOperator) bool {
+func CompareBtreeKeys (entry *Entry_t, cmpVal any, cmpOperator types.CompareOperator, tp types.Type_t) bool {
     switch(cmpOperator){
-        case types.GREATER: return entry.Key > cmpVal
-        case types.SMALLER:return entry.Key < cmpVal
-        case types.EQUAL:return entry.Key == cmpVal
-        case types.SMALLER_EQUAL: return entry.Key <= cmpVal
-        case types.GREATER_EQUAL: return entry.Key >= cmpVal
+        case types.GREATER: 
+            res, _:= types.CompareAnyValues(entry.Key, cmpVal, tp)
+            return res > 0
+        case types.SMALLER:
+            res, _:= types.CompareAnyValues(entry.Key, cmpVal, tp)
+            return res < 0
+        case types.EQUAL:
+            res, _:= types.CompareAnyValues(entry.Key, cmpVal, tp)
+            return res == 0
+        case types.SMALLER_EQUAL: 
+            res, _:= types.CompareAnyValues(entry.Key, cmpVal, tp)
+            return res <= 0
+        case types.GREATER_EQUAL: 
+            res, _:= types.CompareAnyValues(entry.Key, cmpVal, tp)
+            return res >= 0
     }
     return false
 }

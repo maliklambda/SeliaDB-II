@@ -1,6 +1,9 @@
 package btree
 
-import "fmt"
+import (
+    "fmt"
+    "unsafe"
+)
 
 
 type Node_t struct {
@@ -11,7 +14,7 @@ type Node_t struct {
 
 
 type Entry_t struct {
-    Key uint32
+    Key any
     Value uint32 // offset to where the entry is stored in the file
 }
 
@@ -43,6 +46,15 @@ func Traverse(root *Node_t, current *Node_t){
         Traverse(root, &child)
     }
 
+}
+
+
+func UnsafePAnyToPNode_t (pToAny *any) *Node_t {
+    return (*Node_t)(unsafe.Pointer(pToAny)) 
+}
+
+func UnsafePNode_tToPAny (pToNode *Node_t) *any {
+    return (*any)(unsafe.Pointer(pToNode)) 
 }
 
 

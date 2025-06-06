@@ -50,7 +50,7 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
     newOffsetsBtree.UpdateDict = make(map[int]int32)
     var numNewBytes int32
     for range tb.Entries.NumOfEntries {
-        entry, err := ReadEntryFromFile(tb, int(curOffset), fh)
+        entry, err := ReadEntryFromFile(tb, int(curOffset))
         if err != nil {
             return err
         }

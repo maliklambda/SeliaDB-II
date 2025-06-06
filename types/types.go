@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
-    "unsafe"
-    "os"
-    "io"
+	"unsafe"
 )
 
 type Database_t struct {
@@ -24,8 +24,15 @@ type Table_t struct {
     OffsetToLastEntry uint64
     Columns [] Column_t
     Entries *Entries_t
+    Indeces [] Index_t
+
+    // this part is not written to file, only kept in memory
+    MetaData TableMetaData_t
 }
 
+type TableMetaData_t struct {
+    FilePath string
+}
 
 type Entries_t struct {
     NumOfEntries uint64
@@ -40,6 +47,11 @@ type Column_t struct {
     Size uint16
 }
 
+
+type Index_t struct {
+    ColIndex uint32
+    Root * any // * btree.Node_t
+}
 
 type Type_t uint8
 
@@ -158,11 +170,19 @@ const (
     GREATER_EQUAL
 )
 
+type CompareConnector uint8
+
+const (
+    AND = iota
+    OR
+)
+
 
 type CompareObj struct {
     ColName string
     CmpOperator CompareOperator
     Value any
+    Connector CompareConnector // this should default to AND as every AND-condition must be fulfilled
 }
 
 
@@ -278,5 +298,59 @@ func DeallocateInFile (path string, offset, numBytes int64) error {
     return nil
 }
 
+
+// return  1 if v1 is greater
+//        -1 if v2 is greater
+//         0 if v1 equals v2
+func CompareAnyValues (v1, v2 any, tp Type_t) (int, error){
+    switch tp {
+    case INT32:
+        i1, ok := v1.(int32)
+        if !ok {
+            return 0, errors.New("Expected type INT32.")
+        }
+        i2, ok := v2.(int32)
+        if !ok {
+            return 0, errors.New("Expected type INT32.")
+        }
+        if i1 > i2 {
+            return 1, nil
+        } else if i1 < i2 {
+            return -1, nil
+        }
+        return 0, nil
+    case FLOAT32:
+        f1, ok := v1.(float32)
+        if !ok {
+            return 0, errors.New("Expected type FLOAT32.")
+        }
+        f2, ok := v2.(float32)
+        if !ok {
+            return 0, errors.New("Expected type FLOAT32.")
+        }
+        if f1 > f2 {
+            return 1, nil
+        } else if f1 < f2 {
+            return -1, nil
+        }
+        return 0, nil
+    case VARCHAR:
+        s1, ok := v1.(string)
+        if !ok {
+            return 0, errors.New("Expected type VARCHAR.")
+        }
+        s2, ok := v2.(string)
+        if !ok {
+            return 0, errors.New("Expected type VARCHAR.")
+        }
+        fmt.Println("comparing '", s1, "' and '", s2, "'")
+        ret := strings.Compare(s1, s2+"\000")
+        fmt.Println(ret)
+        fmt.Println([]byte(s1))
+        fmt.Println([]byte(s2))
+        return ret, nil
+    }
+    return 0, errors.New("Invalid type")
+}
 
 

@@ -1,13 +1,16 @@
 package btree
 
 import (
+	"errors"
 	"fmt"
 	"slices"
-	"errors"
+	"strings"
+
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 // root must not be nil
-func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
+func Insert (root **Node_t, current *Node_t, entry Entry_t, tp types.Type_t) error {
     fmt.Println("Inserting!!!!", entry.Key)
     if (*root).Entries == nil {
         fmt.Println("Root entries is null")
@@ -28,16 +31,23 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
 
     // current is not a leaf node
     if len(*current.Children) != 0 {
-        childIndex := findChildIndex(*current, entry)
-        Insert(root, &(*current.Children)[childIndex], entry)
+        childIndex := findChildIndex(*current, entry, tp)
+        if childIndex < 0 {
+            return nil
+        }
+        err := Insert(root, &(*current.Children)[childIndex], entry, tp)
+        if err != nil {
+            return err
+        }
         return nil
     }
     
     // current is leaf node and not full
     if len(*current.Children) == 0 && len(*current.Entries) < MAX_KEYS {
         fmt.Println("No children + root is not full")
-        err := insertEntry(current, entry)
+        err := insertEntry(current, entry, tp)
         if err != nil {
+            root = nil
             return err
         }
 
@@ -47,7 +57,8 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
 
     // root is full
     if current == *root && len(*(*root).Entries) >= MAX_KEYS && len(*current.Children) == 0 {
-        tempArr, middleIndex, err := createTempArr(**root, entry)
+        fmt.Println("root is full")
+        tempArr, middleIndex, err := createTempArr(**root, entry, tp)
         if err != nil {
             fmt.Println("Error creating tempArray:", err)
             return err
@@ -55,7 +66,7 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
         fmt.Println("Splitting on", tempArr[middleIndex])
         fmt.Println("New Left:", tempArr[:middleIndex])
         fmt.Println("New right:", tempArr[middleIndex+1:])
-        splitRoot(root, entry)
+        splitRoot(root, entry, tp)
         return nil
     }
 
@@ -63,19 +74,19 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
     if len(*current.Children) == 0 && len(*current.Entries) >= MAX_KEYS {
         fmt.Println("Current is leaf and full")
 
-        tempArr, _, err := createTempArr(*current, entry)
+        tempArr, _, err := createTempArr(*current, entry, tp)
         if err != nil {
             fmt.Println("error:", err)
             return err
         }
 
         fmt.Println(tempArr)
-        parent, parentIndex := findParent(*root, current)
+        parent, parentIndex := findParent(*root, current, tp)
         if parent == nil {
             return errors.New("No parent found")
         }
         fmt.Println("Parent", (*parent.Entries)[0], "at", parentIndex)
-        borrowed, err := borrowFromSibling (current, parent, tempArr, parentIndex)
+        borrowed, err := borrowFromSibling (current, parent, tempArr, parentIndex, tp)
         if err != nil {
             fmt.Println("errorrre:", err)
             return err
@@ -91,7 +102,7 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
             fmt.Println("Want to split node but MAX Children is already reached")
             fmt.Println(tempArr)
             fmt.Println(parent.Entries)
-            pushChildUp(root, current, entry)
+            pushChildUp(root, current, entry, tp)
             return nil
         }
 
@@ -113,9 +124,12 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
     // root has children
     if current == *root && current.Children != nil {
         fmt.Println("Entry is to be inserted in child of root")
-        childIndex := findChildIndex(**root, entry)
+        childIndex := findChildIndex(**root, entry, tp)
         fmt.Println(childIndex)
-        Insert(root, &(*current.Children)[childIndex], entry)
+        err := Insert(root, &(*current.Children)[childIndex], entry, tp)
+        if err != nil {
+            return err
+        }
         return nil
     }
 
@@ -124,12 +138,12 @@ func Insert (root **Node_t, current *Node_t, entry Entry_t) error {
 
 
 
-func borrowFromSibling (current *Node_t, parent *Node_t, tempArr []Entry_t, parentIndex int) (bool, error) {
+func borrowFromSibling (current *Node_t, parent *Node_t, tempArr []Entry_t, parentIndex int, tp types.Type_t) (bool, error) {
     canBorrowFromLeftSibling := checkLeftSibling(parent, parentIndex)
     if canBorrowFromLeftSibling {
         fmt.Println("Borrowing from left sibling")
         leftSibling := (*parent.Children)[parentIndex-1]
-        err := insertToNode(&leftSibling, (*parent.Entries)[parentIndex-1])
+        err := insertToNode(&leftSibling, (*parent.Entries)[parentIndex-1], tp)
         if err != nil {
             fmt.Println("error inserting to left sibling")
             return false, err
@@ -152,12 +166,12 @@ func borrowFromSibling (current *Node_t, parent *Node_t, tempArr []Entry_t, pare
 
 
 
-func splitNode (root **Node_t, parent *Node_t, current *Node_t, entry Entry_t, parentIndex int) error {
+func splitNode (root **Node_t, parent *Node_t, current *Node_t, entry Entry_t, parentIndex int, tp types.Type_t) error {
     if current == *root {
         fmt.Println("Current is root")
         return nil
     }
-    tempArr, middleIndex, err := createTempArr(*current, entry)
+    tempArr, middleIndex, err := createTempArr(*current, entry, tp)
     if err != nil {
         fmt.Println("Error creating temparr")
         return err
@@ -185,50 +199,46 @@ func splitNode (root **Node_t, parent *Node_t, current *Node_t, entry Entry_t, p
 
 
 
-func pushChildUp (root **Node_t, current *Node_t, entry Entry_t){
+func pushChildUp (root **Node_t, current *Node_t, entry Entry_t, tp types.Type_t) error {
     if current == nil {
         fmt.Println("OHOH")
-        return
+        return errors.New("current node is nil")
     }
 
     // check if current->entries is full
     if len(*current.Entries) < MAX_KEYS {
         fmt.Println("Inserting", entry, "to", *current.Entries)
-        err := insertToNode (current, entry)
+        err := insertToNode (current, entry, tp)
         if err != nil {
-            fmt.Println("Error inserting", entry, "into", *current.Entries)
-            return
+            return errors.New(fmt.Sprint("Error inserting", entry, "into", *current.Entries))
         }
-        return
+        return nil
     }
-    parent, parentIndex := findParent(*root, current)
+    parent, parentIndex := findParent(*root, current, tp)
     if parent == nil {
-        splitRoot(root, entry)
-        return
+        splitRoot(root, entry, tp)
+        return nil
     }
 
-    tempArr, middleIndex, err := createTempArr(*current, entry)
+    tempArr, middleIndex, err := createTempArr(*current, entry, tp)
     if err != nil {
-        fmt.Println("Error creating temparr")
-        return 
+        return errors.New("Error creating temparr")
     }
 
-    err = splitNode(root, parent, current, entry, parentIndex)
+    err = splitNode(root, parent, current, entry, parentIndex, tp)
     if err != nil {
-        fmt.Println("Error in splitnode", err)
-        return 
+        return errors.New(fmt.Sprint("Error in splitnode", err))
     }
 
-    pushChildUp(root, parent, tempArr[middleIndex])
+    pushChildUp(root, parent, tempArr[middleIndex], tp)
 
-
-    
+    return nil
 }
 
 
-func splitRoot (root **Node_t, entry Entry_t){
+func splitRoot (root **Node_t, entry Entry_t, tp types.Type_t){
     fmt.Println("Splitting root, with", entry)
-    tempArr, middleIndex, err := createTempArr(**root, entry)
+    tempArr, middleIndex, err := createTempArr(**root, entry, tp)
     if err != nil {
         fmt.Println("Error creating temp arr: fatal:", err)
         return
@@ -260,11 +270,11 @@ func splitRoot (root **Node_t, entry Entry_t){
 
 
 
-func createTempArr (n Node_t, entry Entry_t) ([]Entry_t, int, error) {
+func createTempArr (n Node_t, entry Entry_t, tp types.Type_t) ([]Entry_t, int, error) {
     if entry == (Entry_t{}) {
         return []Entry_t{}, 0, errors.New("Entry must not be empty Entry_t")
     }
-    tempArr := insertToTempArr(n, entry)
+    tempArr := insertToTempArr(n, entry, tp)
     if len(tempArr) == 0{
         return []Entry_t{}, 0, errors.New("Failed to create temporary array")
     }
@@ -273,18 +283,58 @@ func createTempArr (n Node_t, entry Entry_t) ([]Entry_t, int, error) {
 }
 
 
-func insertToTempArr (n Node_t, entry Entry_t) []Entry_t {
+func insertToTempArr (n Node_t, entry Entry_t, tp types.Type_t) []Entry_t {
     tempArr := make([]Entry_t, len(*n.Entries)+1)
     i := 0
-    for _, nodeEntry := range *n.Entries {
-        if entry.Key <= nodeEntry.Key {
-            tempArr[i] = entry
+    switch tp {
+    case types.INT32:
+        for _, nodeEntry := range *n.Entries {
+            fmt.Println(nodeEntry.Key, entry.Key)
+            if nodeEntry.Key.(int32) >= entry.Key.(int32) {
+                if nodeEntry.Key == entry.Key { // this should not be!
+                    return []Entry_t{}
+                }
+                tempArr[i] = entry
+                i++
+                continue
+            }
+            tempArr[i] = nodeEntry
             i++
-            continue
         }
-        tempArr[i] = nodeEntry
-        i++
+    case types.FLOAT32:
+        for _, nodeEntry := range *n.Entries {
+            if nodeEntry.Key.(float32) >= entry.Key.(float32) {
+                if nodeEntry.Key == entry.Key { // this should not be!
+                    return []Entry_t{}
+                }
+                tempArr[i] = entry
+                i++
+                continue
+            }
+            tempArr[i] = nodeEntry
+            i++
+        }
+    case types.VARCHAR:
+        for _, nodeEntry := range *n.Entries {
+            fmt.Println("Comparing: ", nodeEntry.Key.(string), " and ", entry.Key.(string))
+            if cmp := strings.Compare(nodeEntry.Key.(string), entry.Key.(string)); cmp >=0 {
+                if cmp == 0 { // this should not be!
+                    return []Entry_t{}
+                }
+                tempArr[i] = entry
+                i++
+                tempArr = append(tempArr, (*n.Entries)[i-1:]...)
+                tempArr = slices.DeleteFunc(tempArr, func(entry Entry_t) bool {return entry.Key == nil})
+                break
+            }
+            fmt.Println(entry.Key.(string), " is greater")
+            fmt.Println(nodeEntry)
+            tempArr[i] = nodeEntry
+            i++
+        }
     }
+    fmt.Println(tempArr)
+        
     // check if entry has not been inserted
     if tempArr[len(*n.Entries)] == (Entry_t{}) {
         tempArr[len(*n.Entries)] = entry
@@ -295,11 +345,14 @@ func insertToTempArr (n Node_t, entry Entry_t) []Entry_t {
 
 
 
-func findChildIndex (current Node_t, entry Entry_t) int {
+func findChildIndex (current Node_t, entry Entry_t, tp types.Type_t) int {
     fmt.Println("Finding child index")
     i := 0
     for _, nodeEntry := range *current.Entries {
-        if nodeEntry.Key >= entry.Key {
+        if res, err := types.CompareAnyValues(nodeEntry.Key, entry.Key, tp); res >= 0 {
+            if nodeEntry.Key == entry.Key || err != nil { // this should not be!
+                return -1
+            }
             return i
         }
         i++
@@ -309,7 +362,7 @@ func findChildIndex (current Node_t, entry Entry_t) int {
 
 
 
-func findParent (current *Node_t, goal *Node_t) (*Node_t, int) {
+func findParent (current *Node_t, goal *Node_t, tp types.Type_t) (*Node_t, int) {
     if current.Children == nil || len(*current.Children) == 0 {
         return nil, 0
     }
@@ -321,12 +374,12 @@ func findParent (current *Node_t, goal *Node_t) (*Node_t, int) {
             return current, i
         }
     }
-    childIndex := findChildIndex(*current, (*goal.Entries)[0])
+    childIndex := findChildIndex(*current, (*goal.Entries)[0], tp)
     if childIndex >= len(*current.Children){
         fmt.Println("Error finding child index")
         return nil, 0
     }
-    return findParent(&(*current.Children)[childIndex], goal)
+    return findParent(&(*current.Children)[childIndex], goal, tp)
 }
 
 
@@ -356,7 +409,7 @@ func checkRightSibling (parent *Node_t, parentIndex int) bool {
 }
 
 
-func insertToNode (current *Node_t, entry Entry_t) error {
+func insertToNode (current *Node_t, entry Entry_t, tp types.Type_t) error {
     fmt.Println("Inserting to node")
     fmt.Println(entry)
     if len(*current.Entries) >= MAX_KEYS {
@@ -364,10 +417,15 @@ func insertToNode (current *Node_t, entry Entry_t) error {
     }
     i := 0
     for _, nodeEntry := range *current.Entries {
-        if nodeEntry.Key >= entry.Key {
+        if res, err := types.CompareAnyValues(nodeEntry.Key, entry.Key, tp); res > 0 {
             break
+        } else if res < 0 {
+            i++
+        } else if err != nil {
+            return err
+        } else { // so pk already exists
+            return errors.New("Duplicate PK")
         }
-        i++
     }
     *current.Entries = slices.Insert(*current.Entries, i, entry)
     fmt.Println(current.Entries)
@@ -376,19 +434,28 @@ func insertToNode (current *Node_t, entry Entry_t) error {
 }
 
 
-func insertEntry (current *Node_t, entry Entry_t) error {
+func insertEntry (current *Node_t, entry Entry_t, tp types.Type_t) error {
     fmt.Println("Inserting Entry")
     i := 0
     for ; i<len(*current.Entries); i++ {
-        if len(*current.Entries)<=i || (*current.Entries)[i].Key >= entry.Key{
+        if res, _ := types.CompareAnyValues((*current.Entries)[i].Key, entry.Key, tp); len(*current.Entries)<=i || res >= 0 {
+            if res == 0 {
+                return errors.New(fmt.Sprint("Cannot index because value ", entry.Key, " already exists"))
+            }
             break
         }
     }
+    
     *current.Entries = append(*current.Entries, Entry_t{})
     copy((*current.Entries)[i+1:], (*current.Entries)[i:])
     (*current.Entries)[i] = entry
+    fmt.Println((*current.Entries))
+    fmt.Println(i)
     fmt.Println(*current.Entries)
     fmt.Println(entry)
     fmt.Println("Inserting at index", i)
     return nil
 }
+
+
+

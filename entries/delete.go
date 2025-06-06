@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+    "errors"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/types"
-    "errors"
 )
 
-func DeleteAllEntries (tb *types.Table_t, fh *FileHandler) error {
+func DeleteAllEntries (tb *types.Table_t) error {
     if tb.Entries != nil && tb.Entries.NumOfEntries == 0 {
         return nil
     }
-    f, err := os.OpenFile(fh.Path, os.O_RDWR, 0644)
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR, 0644)
     if err != nil {
         return err
     }
@@ -23,25 +23,25 @@ func DeleteAllEntries (tb *types.Table_t, fh *FileHandler) error {
     if err != nil {
         return err
     }
-    err = DeleteBytesFromTo(fh, int64(tb.StartEntries), end)
+    err = DeleteBytesFromTo(tb.MetaData.FilePath, int64(tb.StartEntries), end)
     if err != nil {
         return err
     }
-    UpdateOffsetLastEntry(fh, 0)
+    UpdateOffsetLastEntry(tb.MetaData.FilePath, 0)
     return nil
 }
 
 
 
-func DeleteBytesFromTo (fh *FileHandler, from, to int64) error {
+func DeleteBytesFromTo (path string, from, to int64) error {
     fmt.Println("Deleting from", from, "to", to)
-    f, err := os.Open(fh.Path)
+    f, err := os.Open(path)
     if err != nil {
         return err
     }
     defer f.Close()
 
-    tmp, err := os.CreateTemp("", "tmp-" + fh.Path)
+    tmp, err := os.CreateTemp("", "tmp-" + path)
     if err != nil {
         return err
     }
@@ -66,7 +66,7 @@ func DeleteBytesFromTo (fh *FileHandler, from, to int64) error {
     tmp.Close()
     f.Close()
 
-    err = os.Rename(tmp.Name(), fh.Path)
+    err = os.Rename(tmp.Name(), path)
     if err != nil {
         return err
     }
@@ -75,13 +75,15 @@ func DeleteBytesFromTo (fh *FileHandler, from, to int64) error {
 }
 
 
-func DeleteEntryByPK (tb *types.Table_t, fh *FileHandler, pk uint32) error {
-    entry := btree.SearchKey(fh.Root, *fh.Root, pk)
-    if entry == nil {
+func DeleteEntryByPK (tb *types.Table_t, pk any, tp types.Type_t, pkIndex int) error {
+    index := tb.Indeces[pkIndex]
+    // entry := btree.SearchKey((*btree.Node_t)(unsafe.Pointer(index.Root)), (*btree.Node_t)(unsafe.Pointer(index.Root)), pk, tp)
+    entry, err := btree.SearchKey(btree.UnsafePAnyToPNode_t(index.Root), btree.UnsafePAnyToPNode_t(index.Root), pk, tp)
+    if err != nil || entry == nil {
         return errors.New("PK was not found")
     }
 
-    values, err := ReadEntryFromFile(tb, int(entry.Value), fh)
+    values, err := ReadEntryFromFile(tb, int(entry.Value))
     if err != nil {
         return err
     }
@@ -91,7 +93,7 @@ func DeleteEntryByPK (tb *types.Table_t, fh *FileHandler, pk uint32) error {
         return errors.New("length of entry returned 0")
     }
 
-    err = DeleteBytesFromTo(fh, int64(entry.Value), int64(int(entry.Value)+length))
+    err = DeleteBytesFromTo(tb.MetaData.FilePath, int64(entry.Value), int64(int(entry.Value)+length))
     if err != nil {
         return err
     }
@@ -146,7 +148,7 @@ func iterateOverEntriesDelete (fh *FileHandler, tb *types.Table_t, cmp types.Com
     newOffsetsBtree := types.UpdateOffsetList{}
     newOffsetsBtree.UpdateDict = make(map[int]int32)
     for range tb.Entries.NumOfEntries {
-        entry, err := ReadEntryFromFile(tb, int(curOffset), fh)
+        entry, err := ReadEntryFromFile(tb, int(curOffset))
         if err != nil {
             return err
         }
@@ -163,7 +165,7 @@ func iterateOverEntriesDelete (fh *FileHandler, tb *types.Table_t, cmp types.Com
             fmt.Println("deleting", int32(GetEntryLength(entry))*(-1), "bytes at", curOffset)
             newOffsetsBtree.UpdateDict[int(curOffset)] = int32(GetEntryLength(entry))* (-1)
             newOffsetsBtree.Current -= int32(GetEntryLength(entry))
-            err = DeleteBytesFromTo(fh, int64(curOffset), int64(curOffset+uint16(GetEntryLength(entry))))
+            err = DeleteBytesFromTo(tb.MetaData.FilePath, int64(curOffset), int64(curOffset+uint16(GetEntryLength(entry))))
             if err != nil {
                 return err
             }

@@ -29,7 +29,7 @@ func IterateOverEntriesInFile (fh *entries.FileHandler, tb *types.Table_t) error
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
         fmt.Println("Reading entry at", currentPos)
-        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos), fh)
+        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
             return err
         }
@@ -93,13 +93,13 @@ func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, limit 
     returnValues := make([][][]byte, 0)
     cur := tb.StartEntries
     for range tb.Entries.NumOfEntries {
-        entry, err := entries.ReadEntryFromFile(tb, int(cur), fh)
+        entry, err := entries.ReadEntryFromFile(tb, int(cur))
         if err != nil {
             return [][][]byte{}, err
         }
         cur += uint16(entries.GetEntryLength(entry))
         for i, cmp := range cmpObjs {
-            fmt.Println("Comparing", entry, "and", cmp.Value)
+            fmt.Println("Comparing", entry[indices[i]], "and", cmp.Value)
             // check if entry matches condition
             compareResult, err := types.CompareValues(tb.Columns[indices[i]].Type, entry[indices[i]], cmp.Value)
             if err != nil {

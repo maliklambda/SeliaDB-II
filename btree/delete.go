@@ -4,12 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-
-
 // Todo change function to take PK as parameter, not Entry_t
-func Delete (root **Node_t, current *Node_t, entry Entry_t) error {
+func Delete (root **Node_t, current *Node_t, entry Entry_t, tp types.Type_t) error {
     if current == nil {
         return errors.New("Current may not be nil")
     }
@@ -34,8 +33,8 @@ func Delete (root **Node_t, current *Node_t, entry Entry_t) error {
     }
 
     if len(*current.Children) > 0 {
-        childIndex := findChildIndex(*current, entry)
-        return Delete(root, &(*current.Children)[childIndex], entry)
+        childIndex := findChildIndex(*current, entry, tp)
+        return Delete(root, &(*current.Children)[childIndex], entry, tp)
     }
 
     return nil

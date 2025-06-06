@@ -10,7 +10,7 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-func AddEntry (tb *types.Table_t, fh *FileHandler, values ... any) error {
+func AddEntry (tb *types.Table_t, values ... any) error {
     if tb.Entries == nil {
         tb.Entries = &types.Entries_t{}
     }
@@ -18,6 +18,7 @@ func AddEntry (tb *types.Table_t, fh *FileHandler, values ... any) error {
         return errors.New(fmt.Sprintf("Must pass correct number of arguments. Expected %d, got %d", tb.NumOfColumns, len(values)))
     }
     var entry []byte
+    var err error
     for i := range tb.NumOfColumns {
         // fmt.Println(reflect.TypeOf(values[i]))
         s, ok := values[i].(string)
@@ -28,13 +29,16 @@ func AddEntry (tb *types.Table_t, fh *FileHandler, values ... any) error {
         n, ok := values[i].(int32)
         if ok {
             fmt.Println("int32:", int32(n))
-            entry = binary.LittleEndian.AppendUint32(entry, uint32(n))
+            entry, err = binary.Append(entry, binary.LittleEndian, int32(n))
+            if err != nil {
+                return err
+            }
         }
     }
     tb.Entries.Values = append(tb.Entries.Values, entry)
     tb.Entries.NumOfEntries ++
     fmt.Println(entry)
-    err := AppendEntryToFile(tb, fh, entry)
+    err = AppendEntryToFile(tb, entry)
     if err != nil {
         fmt.Println("Error writing entry to file", err)
         return err
@@ -91,7 +95,7 @@ func ReadEntryIndex (tb *types.Table_t, index int) ([][]byte, error) {
 
 
 
-func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byte, error) {
+func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
     fmt.Println("Reading entry")
     fmt.Println("starting at", offset)
     if tb.Entries == nil {
@@ -101,7 +105,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int, fh *FileHandler) ([][]byt
         return [][]byte{}, errors.New("Entries->Values cannot be nil")
     }
 
-    f, err := os.Open(fh.Path)
+    f, err := os.Open(tb.MetaData.FilePath)
     if err != nil {
         return [][]byte{}, err
     }
