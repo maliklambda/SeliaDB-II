@@ -35,6 +35,13 @@ func AddIndex(tb *types.Table_t, colName string) error {
     newRoot := &btree.Node_t{}
     fmt.Println("\n\n\n\nIndexing", colName, "of type", tb.Columns[colIndex].Type)
     currentPos := tb.StartEntries
+    if tb.Entries == nil || tb.Entries.NumOfEntries == 0 {
+        tb.Indeces = append(tb.Indeces, types.Index_t{
+            ColIndex: uint32(colIndex),
+            Root: btree.UnsafePNode_tToPAny(newRoot),
+        })
+        return nil
+    }
     for range tb.Entries.NumOfEntries {
         fmt.Println("Reading entry at", currentPos)
         buffer, err := ReadEntryFromFile(tb, int(currentPos))
@@ -68,7 +75,6 @@ func AddIndex(tb *types.Table_t, colName string) error {
     fmt.Println("Sucessfully indexed ", colName)
     tb.Indeces = append(tb.Indeces, types.Index_t{
         ColIndex: uint32(colIndex),
-        // Root: (*any)(unsafe.Pointer(newRoot)),
         Root: btree.UnsafePNode_tToPAny(newRoot),
     })
     return nil

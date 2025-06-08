@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	// "github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 

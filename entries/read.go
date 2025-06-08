@@ -10,8 +10,8 @@ import (
 )
 
 // data may be any as there is a type assertion. Future ToDo: change so that all types can be read from file via one method
-func (fh FileHandler) ReadTableFromFile (data any, offset int64) error {
-    f, err := os.Open(fh.Path)
+func ReadTableFromFile (path string, data any, offset int64) error {
+    f, err := os.Open(path)
     if err != nil {
         return err
     }

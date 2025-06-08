@@ -11,7 +11,7 @@ import (
 )
 
 
-func UpdateEntriesWhere (tb *types.Table_t, fh *FileHandler, cmpObj types.CompareObj, colName string, newValue any) error {
+func UpdateEntriesWhere (tb *types.Table_t, cmpObj types.CompareObj, colName string, newValue any) error {
     if !ExistsColumnName(tb, cmpObj.ColName){
         return errors.New(fmt.Sprintf("Column %s (compare column) does not exist", cmpObj.ColName))
     }
@@ -25,7 +25,7 @@ func UpdateEntriesWhere (tb *types.Table_t, fh *FileHandler, cmpObj types.Compar
         return err
     }
 
-    err = iterateOverEntriesUpdate(fh, tb, cmpObj, colIndex, newValue)
+    err = iterateOverEntriesUpdate(tb, cmpObj, colIndex, newValue)
     if err != nil {
         return err
     }
@@ -38,7 +38,7 @@ func UpdateEntriesWhere (tb *types.Table_t, fh *FileHandler, cmpObj types.Compar
 
 
 
-func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.CompareObj, colIndex int, newValue any) error {
+func iterateOverEntriesUpdate (tb *types.Table_t, cmp types.CompareObj, colIndex int, newValue any) error {
     fmt.Println(cmp.ColName, cmp.Value)
     cmpColIndex, err := StringToColumnIndex(tb, cmp.ColName)
     if err != nil {
@@ -66,7 +66,7 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
             fmt.Println("current", curOffset)
             offsetToProperty := getEntryLengthUpToIndex(entry, colIndex)
             fmt.Println("writing", newValue, "at", int32(curOffset) + offsetToProperty)
-            numNewBytes, err = updateEntry(fh, tb, &entry, int64(int32(curOffset) + offsetToProperty), colIndex, newValue)
+            numNewBytes, err = updateEntry(tb, &entry, int64(int32(curOffset) + offsetToProperty), colIndex, newValue)
             if err != nil {
                 fmt.Println("ERR:",err)
                 return err
@@ -84,7 +84,9 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
     fmt.Println(newOffsetsBtree)
     if len(newOffsetsBtree.UpdateDict) > 0 {
         fmt.Println("Must update btree entries")
-        btree.UpdateBtreeOffsetMap(*fh.Root, &newOffsetsBtree.UpdateDict)
+        for _, index := range tb.Indeces {
+            btree.UpdateBtreeOffsetMap(btree.UnsafePAnyToPNode_t(index.Root), &newOffsetsBtree.UpdateDict)
+        }
         return nil
     }
     return nil
@@ -93,7 +95,7 @@ func iterateOverEntriesUpdate (fh *FileHandler, tb *types.Table_t, cmp types.Com
 
 
 
-func updateEntry (fh * FileHandler, tb * types.Table_t, entry *[][]byte, offset int64, colIndex int, newValue any) (int32, error) {
+func updateEntry (tb * types.Table_t, entry *[][]byte, offset int64, colIndex int, newValue any) (int32, error) {
     fmt.Println("Updating entry")
 
     if tb.Columns[colIndex].Type == types.VARCHAR {
@@ -106,10 +108,10 @@ func updateEntry (fh * FileHandler, tb * types.Table_t, entry *[][]byte, offset 
         fmt.Println((*entry)[colIndex])
         fmt.Println(string((*entry)[colIndex]))
         fmt.Println(len(s)+1)
-        return updateEntryVarchar(fh, entry, offset, colIndex, s)
+        return updateEntryVarchar(tb.MetaData.FilePath, entry, offset, colIndex, s)
     }
 
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return 0, err
     }
@@ -156,7 +158,7 @@ func StringToColumnIndex (tb *types.Table_t, colName string) (int, error){
             return i, nil
         }
     }
-    return 0, errors.New(fmt.Sprintf("Column %s does not exist", colName))
+    return 0, errors.New(fmt.Sprintf("Column %s does not exist in table %s", colName, tb.Name))
 }
 
 
@@ -203,15 +205,15 @@ func ExistsColumnName (tb *types.Table_t, colName string) bool {
 
 
 
-func updateEntryVarchar (fh * FileHandler, entry *[][]byte, offset int64, colIndex int, newString string) (int32, error) {
+func updateEntryVarchar (path string, entry *[][]byte, offset int64, colIndex int, newString string) (int32, error) {
     if len((*entry)[colIndex]) < len(newString)+1 {
         fmt.Println("Must allocate", len(newString)+1-len((*entry)[colIndex]), "new bytes on file, at offset", offset+int64(len((*entry)[colIndex])))
         newAllocatedBytes := len(newString)+1 - len((*entry)[colIndex])
-        err := types.AllocateInFile(fh.Path, offset+int64(len((*entry)[colIndex])), int64(newAllocatedBytes))
+        err := types.AllocateInFile(path, offset+int64(len((*entry)[colIndex])), int64(newAllocatedBytes))
         if err != nil {
             return 0, err
         }
-        err = fh.WriteStringToFile(offset, newString)
+        err = WriteStringToFile(path, offset, newString)
         if err != nil {
             return 0, err
         }
@@ -220,11 +222,11 @@ func updateEntryVarchar (fh * FileHandler, entry *[][]byte, offset int64, colInd
     } else if len((*entry)[colIndex]) > len(newString)+1 {
         numFreedBytes := len((*entry)[colIndex]) - (len(newString)+1)
         fmt.Println("Must deallocate", numFreedBytes, "many bytes from file, right of offset", offset)
-        err := types.DeallocateInFile(fh.Path, offset,  int64(numFreedBytes))
+        err := types.DeallocateInFile(path, offset,  int64(numFreedBytes))
         if err != nil {
             return 0, err
         }
-        err = fh.WriteStringToFile(offset, newString)
+        err = WriteStringToFile(path, offset, newString)
         if err != nil {
             return 0, err
         }

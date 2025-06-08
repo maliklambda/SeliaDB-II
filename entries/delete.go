@@ -77,7 +77,6 @@ func DeleteBytesFromTo (path string, from, to int64) error {
 
 func DeleteEntryByPK (tb *types.Table_t, pk any, tp types.Type_t, pkIndex int) error {
     index := tb.Indeces[pkIndex]
-    // entry := btree.SearchKey((*btree.Node_t)(unsafe.Pointer(index.Root)), (*btree.Node_t)(unsafe.Pointer(index.Root)), pk, tp)
     entry, err := btree.SearchKey(btree.UnsafePAnyToPNode_t(index.Root), btree.UnsafePAnyToPNode_t(index.Root), pk, tp)
     if err != nil || entry == nil {
         return errors.New("PK was not found")
@@ -120,7 +119,7 @@ func DeleteEntryByPK (tb *types.Table_t, pk any, tp types.Type_t, pkIndex int) e
 
 
 
-func (fh * FileHandler) DeleteEntriesWhere (tb *types.Table_t, cmpObj types.CompareObj) error {
+func DeleteEntriesWhere (tb *types.Table_t, cmpObj types.CompareObj) error {
     if !ExistsColumnName(tb, cmpObj.ColName){
         return errors.New(fmt.Sprintf("Column %s (compare column) does not exist", cmpObj.ColName))
     }
@@ -130,13 +129,13 @@ func (fh * FileHandler) DeleteEntriesWhere (tb *types.Table_t, cmpObj types.Comp
     //     return err
     // }
 
-    iterateOverEntriesDelete (fh, tb, cmpObj)
+    iterateOverEntriesDelete (tb, cmpObj)
     return nil
 }
 
 
 
-func iterateOverEntriesDelete (fh *FileHandler, tb *types.Table_t, cmp types.CompareObj) error {
+func iterateOverEntriesDelete (tb *types.Table_t, cmp types.CompareObj) error {
     fmt.Println(cmp.ColName, cmp.Value)
     cmpColIndex, err := StringToColumnIndex(tb, cmp.ColName)
     if err != nil {
@@ -176,8 +175,10 @@ func iterateOverEntriesDelete (fh *FileHandler, tb *types.Table_t, cmp types.Com
     fmt.Println(newOffsetsBtree)
     if len(newOffsetsBtree.UpdateDict) > 0 {
         fmt.Println("Must update btree entries")
-        btree.UpdateBtreeOffsetMap(*fh.Root, &newOffsetsBtree.UpdateDict)
-        // Delete PK from btree structure
+        for _, index := range tb.Indeces {
+            btree.UpdateBtreeOffsetMap(btree.UnsafePAnyToPNode_t(index.Root), &newOffsetsBtree.UpdateDict)
+        }
+        // TODO: Delete PK from btree structure
             // btree.Delete(root, current, )
         return nil
     }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"unsafe"
@@ -352,5 +353,51 @@ func CompareAnyValues (v1, v2 any, tp Type_t) (int, error){
     }
     return 0, errors.New("Invalid type")
 }
+
+
+func (tb Table_t) IsColIndexed (ColIndex uint32) bool {
+    for _, col := range tb.Indeces {
+        if col.ColIndex == ColIndex{
+            return true
+        }
+    }
+    return false
+}
+
+
+func (tb Table_t) FindIndex (index uint32) (uint32, error) {
+    for i, col := range tb.Indeces {
+        if col.ColIndex == index {
+            return uint32(i), nil
+        }
+    }
+    return uint32(0), errors.New("Index provided is not in tables' indices")
+}
+
+
+func ByteSliceToValue (bytes []byte, tp Type_t) (any, error) {
+    switch tp {
+    case VARCHAR: return string(bytes), nil
+    case INT32: return int32(binary.LittleEndian.Uint32(bytes)), nil
+    case FLOAT32: 
+        bits := (binary.LittleEndian.Uint32(bytes))
+        return math.Float32frombits(bits), nil
+    }
+    return nil, errors.New(fmt.Sprint("Not yet supported type ", tp.String()))
+}
+
+
+
+func InterpretTableWithByteSlice (bytes [][]byte, tb *Table_t) {
+    for i, col := range tb.Columns {
+        fmt.Print(col.Name, ": ")
+        switch col.Type {
+            case VARCHAR: fmt.Println(string(bytes[i]))
+            case INT32: fmt.Println(int32(binary.LittleEndian.Uint32(bytes[i])))
+            case FLOAT32: fmt.Println(math.Float32frombits((binary.LittleEndian.Uint32(bytes[i]))))
+        }
+    }
+}
+
 
 

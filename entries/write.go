@@ -4,41 +4,19 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+    "errors"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 
-
-type FileHandler struct {
-    Path string
-    Root **btree.Node_t
-    File *os.File
-}
-
-
-
-func CreateFile (fileName string) (FileHandler, error) {
-    f, err := os.Create(fileName)
-    if err != nil {
-        return FileHandler{}, err
-    }
-    defer f.Close()
-    newRoot := &btree.Node_t{}
-    return FileHandler{fileName, &newRoot, nil}, nil
-}
-
-
-
-
-func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
-    fmt.Println("Writing", fh.Path)
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func WriteTableToFile (tb *types.Table_t) error {
+    fmt.Println("Writing", tb.MetaData.FilePath)
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
-    fh.File = f
     defer f.Close()
 
     err = binary.Write(f, binary.LittleEndian, tb.NumOfColumns)
@@ -75,7 +53,8 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
         fmt.Printf("Offset: %d\n", offset)
         fmt.Println("column:", col)
         fmt.Println(f)
-        fh.WriteColumnToFile(col, offset)
+        WriteColumnToFile(col, offset, f)
+
     }
     pos, err := f.Seek(0, 1)
     if err != nil {
@@ -114,23 +93,25 @@ func WriteTableToFile (tb *types.Table_t, fh *FileHandler) error {
 
 
 
-func (fh FileHandler) WriteColumnToFile (col types.Column_t, offset int64) error{
-    fmt.Println("Writing this right here to file", fh.Path, ":", col)
-    fmt.Println(fh.File)
-    _, err := fh.File.Write([]byte(col.Name + "\000"))
+func WriteColumnToFile (col types.Column_t, offset int64, f * os.File) error{
+    if f == nil {
+        return errors.New("File must not be nil")
+    }
+    fmt.Println("Writing this right here to file", ":", col)
+    _, err := f.Write([]byte(col.Name + "\000"))
     if err != nil {
         fmt.Println("Error writing col name to file")
         return err
     }
 
-    err = binary.Write(fh.File, binary.LittleEndian, col.Type)
+    err = binary.Write(f, binary.LittleEndian, col.Type)
     if err != nil {
         fmt.Println("Error writing col type to file")
         fmt.Println(err)
         return err
     }
 
-    err = binary.Write(fh.File, binary.LittleEndian, col.Size)
+    err = binary.Write(f, binary.LittleEndian, col.Size)
     if err != nil {
         fmt.Println("Error writing col size to file")
         return err
@@ -169,8 +150,6 @@ func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
     for i, index := range tb.Indeces {
         fmt.Println(index)
         fmt.Println(tb.Columns[i].Type)
-        // fmt.Println("Inserting offset:", pos, "Key:", val)
-        // node := (*btree.Node_t)(unsafe.Pointer(index.Root))
         node := btree.UnsafePAnyToPNode_t(index.Root)
         InsertToBtree(&node, int32(val), uint32(pos), types.INT32)
         
@@ -244,8 +223,8 @@ func UpdateNumOfColumns (path string, newNumOfColumns uint32) error {
 }
 
 
-func UpdateStartEntries (fh *FileHandler, newStartEntries uint16) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func UpdateStartEntries (path string, newStartEntries uint16) error {
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
@@ -276,8 +255,8 @@ func UpdateStartEntries (fh *FileHandler, newStartEntries uint16) error {
 
 
 // this works with all fixed sized variables (NOT with strings, etc.) -> see WriteStringToFile()
-func WriteDataToFile (fh *FileHandler, offset int64, value any) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func WriteDataToFile (path string, offset int64, value any) error {
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
@@ -298,8 +277,8 @@ func WriteDataToFile (fh *FileHandler, offset int64, value any) error {
 
 
 // expects string without \000 at the end
-func (fh * FileHandler) WriteStringToFile (offset int64, s string) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func WriteStringToFile (path string, offset int64, s string) error {
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         fmt.Println("err 1")
         return err

@@ -26,6 +26,10 @@ func SearchKey (root *Node_t, current *Node_t, searchedKey any, tp types.Type_t)
 
 func isKeyInNode(current *Node_t, searchedKey any, tp types.Type_t) (bool, int) {
     i := 0
+    fmt.Println("searching for", searchedKey)
+    if current.Entries == nil {
+        return false, 0
+    }
     for _, entry := range *current.Entries {
         if entry.Key == searchedKey {
             return true, i

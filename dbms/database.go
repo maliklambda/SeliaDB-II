@@ -49,10 +49,8 @@ func WriteDatabase (db *types.Database_t) error {
     }
     
     for _, table := range db.Tables {
-        fh := entries.FileHandler{
-            Path: table.Name+".tb",
-        }
-        err = entries.WriteTableToFile(table, &fh)
+        path := table.Name+".tb"
+        err = entries.WriteTableToFile(table, path)
         if err != nil {
             return err
         }
