@@ -23,23 +23,25 @@ func IterateOverEntries(tb *types.Table_t){
 
 
 
-func IterateOverEntriesInFile (fh *entries.FileHandler, tb *types.Table_t) error {
+func IterateOverEntriesInFile (tb *types.Table_t) ([][][]byte, []int, error) {
     fmt.Println("Iterating over entries on file!!!!!!")
+    maxLengths := make([]int, len(tb.Columns))
     currentPos := tb.StartEntries
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
         fmt.Println("Reading entry at", currentPos)
         buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
-            return err
+            return [][][]byte{}, []int{}, err
         }
         fmt.Println("Buffer len:",entries.GetEntryLength(buffer))
         values = append(values, buffer)
+        types.UpdateLongestDisplay(maxLengths, buffer, tb)
         currentPos += uint16(entries.GetEntryLength(buffer))
     }
     fmt.Println("Here")
     fmt.Println(values)
-    return nil
+    return values, maxLengths, nil
 }
 
 
@@ -75,7 +77,7 @@ func FindEntryByKey (tb *types.Table_t, colName string, value any) ([][]byte, er
 
 
 
-func FindEntryWhereCondition (fh *entries.FileHandler, tb *types.Table_t, limit uint16, cmpObjs ... types.CompareObj) ([][][]byte, error){
+func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types.CompareObj) ([][][]byte, error){
     indices := make([]int, len(cmpObjs))
     for i, cmp := range cmpObjs {
         index, err := entries.StringToColumnIndex(tb, cmp.ColName)

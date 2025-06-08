@@ -18,26 +18,26 @@ type joinCompareObj struct {
     }
 }
 
-func InnerJoinIndexedSingleCol (left, right * types.Table_t, leftCol, rightCol string) ([][][]byte, *types.Table_t, error) {
+func InnerJoinIndexedSingleCol (left, right * types.Table_t, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
     fmt.Println("Joining ", left.Name, " and ", right.Name)
     leftIndex, err := entries.StringToColumnIndex(left, leftCol)
     if err != nil {
-        return [][][]byte{}, nil, err
+        return [][][]byte{}, nil, []int{}, err
     }
     if !left.IsColIndexed(uint32(leftIndex)){
-        return [][][]byte{}, nil, errors.New(fmt.Sprint("Cannot join on non-indexed column ", displayTableAndColumn(left, leftIndex), " (yet)"))
+        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint("Cannot join on non-indexed column ", displayTableAndColumn(left, leftIndex), " (yet)"))
     }
 
     rightIndex, err := entries.StringToColumnIndex(right, rightCol)
     if err != nil {
-        return [][][]byte{}, nil, err
+        return [][][]byte{}, nil, []int{}, err
     }
     if !right.IsColIndexed(uint32(rightIndex)){
-        return [][][]byte{}, nil,errors.New(fmt.Sprint("Cannot join on non-indexed column ", displayTableAndColumn(right, rightIndex), "(yet)"))
+        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint("Cannot join on non-indexed column ", displayTableAndColumn(right, rightIndex), "(yet)"))
     }
 
     if left.Columns[leftIndex].Type != right.Columns[rightIndex].Type {
-        return [][][]byte{}, nil, errors.New(fmt.Sprint(
+        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint(
             "Cannot join tables ", displayTableAndColumn(left, leftIndex), " and ",
             displayTableAndColumn(right, rightIndex),
             " -> missmatched types"))
@@ -45,15 +45,17 @@ func InnerJoinIndexedSingleCol (left, right * types.Table_t, leftCol, rightCol s
 
     rightIndicesIndex, err := right.FindIndex(uint32(rightIndex))
     if err != nil {
-        return [][][]byte{}, nil, err
+        return [][][]byte{}, nil, []int{}, err
     }
+    rt := btree.UnsafePAnyToPNode_t(right.Indeces[rightIndicesIndex].Root)
 
     newTb, err := mergeTables(left, right, []struct {left int; right int}{
         {left: leftIndex, right: rightIndex},
     })
     if err != nil {
-        return [][][]byte{}, nil, err
+        return [][][]byte{}, nil, []int{}, err
     }
+    maxLengths := make([]int, len(newTb.Columns))
 
     currentPos := left.StartEntries
     values := [][][]byte{}
@@ -69,28 +71,36 @@ func InnerJoinIndexedSingleCol (left, right * types.Table_t, leftCol, rightCol s
         }
         currentPos += uint16(entries.GetEntryLength(buffer))
 
+        // check here for filter on left column -> continue if not met
+
         // find current value from left in right
         val, err := types.ByteSliceToValue(buffer[leftIndex], left.Columns[leftIndex].Type)
         if err != nil {
-            return [][][]byte{}, nil, err
+            return [][][]byte{}, nil, []int{}, err
         }
         fmt.Println("finding ", val, " in right-join-column")
-        rt := btree.UnsafePAnyToPNode_t(right.Indeces[rightIndicesIndex].Root)
         entry, err := btree.SearchKey(rt, rt, val, right.Columns[rightIndex].Type)
         if err != nil {
             continue
         }
+        
+        // check here for filter on right column -> continue if not met
+
+
         // remove join column from left
         rightValues, err := entries.ReadEntryFromFile(right, int(entry.Value))
         new_vals := append(slices.Delete(buffer, leftIndex, leftIndex +1), rightValues...)
+        // update longest display value
+        types.UpdateLongestDisplay(maxLengths, new_vals, newTb)
+        fmt.Println(maxLengths)
         values = append(values, new_vals)
     }
     fmt.Print("\n\n\n\n\n\n")
     fmt.Println(right.Indeces)
     fmt.Println(rightIndicesIndex)
-    rt := btree.UnsafePAnyToPNode_t(right.Indeces[rightIndicesIndex].Root)
     btree.Traverse(rt, rt)
-    return values, newTb, nil
+    fmt.Println("Max lengths:", maxLengths)
+    return values, newTb, maxLengths, nil
 }
 
 
@@ -107,16 +117,28 @@ func mergeTables (left, right *types.Table_t, joinCols[] struct{
     copy(left_cols, left.Columns)
     right_cols := make([]types.Column_t, right.NumOfColumns)
     copy(right_cols, right.Columns)
-    for _, col := range joinCols {
+    changedNames := make([]int, 0)
+    for i, col := range joinCols {
         // rename col in right 
         right_cols[col.right].Name = left.Columns[col.left].Name + "_" + right.Columns[col.right].Name
         // delete col from left
         left_cols = slices.Delete(left_cols, col.left, col.left+1)
         fmt.Println(col)
+        changedNames = append(changedNames, i)
+    }
+    // rename colname to table.colname
+    for i := range left_cols {
+        left_cols[i].Name = left.Name + "." + left_cols[i].Name
+    }
+    for i := range right_cols {
+        if slices.Contains(changedNames, i-1){
+            continue
+        }
+        right_cols[i].Name = right.Name + "." + right_cols[i].Name
     }
     newTb := types.Table_t {
         NumOfColumns: left.NumOfColumns + right.NumOfColumns - uint32(len(joinCols)),
-        Name: "tmp_" + left.Name + "_" + right.Name, 
+        Name: "tmp_" + left.Name + "_" + right.Name,
         Columns: append(left_cols, right_cols...),
     }
     
