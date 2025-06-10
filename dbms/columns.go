@@ -12,7 +12,7 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colType string, varCharLen uint32, defaultValue any) error {
+func AddColumn (tb *types.Table_t, colName string, colType string, varCharLen uint32, defaultValue any) error {
     tp, err := types.StringToType_t(colType)
     if err != nil {
         return err
@@ -33,7 +33,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
         Size: size,
     }
     fmt.Println("New column:", newCol)
-    insertColumnToFile(fh, tb, &newCol)
+    insertColumnToFile(tb, &newCol)
     if err = entries.UpdateNumOfColumns(tb.MetaData.FilePath, tb.NumOfColumns+1); err != nil {
         return err
     }
@@ -41,7 +41,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
     fmt.Println("\n\nstart entries:", tb.StartEntries)
     colSize := uint16(newCol.GetColSize())
     fmt.Println("offset :", colSize)
-    if err = entries.UpdateStartEntries(fh, tb.StartEntries+colSize); err != nil {
+    if err = entries.UpdateStartEntries(tb.MetaData.FilePath, tb.StartEntries+colSize); err != nil {
         return err
     }
     tb.StartEntries += colSize
@@ -81,15 +81,17 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
     // temp := int(colSize)
     fmt.Println("\n\n\n\n\n\nReached")
     entryList := &[]btree.Entry_t{}
-    err = moveBtreeEntries(fh.Root, *fh.Root, entryList, int(colSize), btreeMoveSize)
-    if err != nil {
-        return err
+    for _, index := range tb.Indeces {
+        err = moveBtreeEntries(btree.UnsafePAnyToPNode_t(index.Root), btree.UnsafePAnyToPNode_t(index.Root), entryList, int(colSize), btreeMoveSize)
+        if err != nil {
+            return err
+        }
     }
 
     if isDefaultValue {       
         // iterate over all entries, insert defaultValue for column 
         fmt.Println(defaultValue)
-        err = insertDefaultValue(tb, fh, newCol, defaultValue)
+        err = insertDefaultValue(tb, newCol, defaultValue)
         if err != nil {
             return err
         }
@@ -109,7 +111,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
         values = append(values, buffer)
         currentPos += uint16(entries.GetEntryLength(buffer))
         fmt.Println("\n\n\nAllocating", newCol.Size, "Bytes at", currentPos)
-        bytesWritten, err := appendNullValuesToFile(fh, &newCol, int64(currentPos))
+        bytesWritten, err := appendNullValuesToFile(tb, &newCol, int64(currentPos))
         if err != nil {
             return err
         }
@@ -117,7 +119,7 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
     }
     // append null values to end of file
     // This is necessary because method AllocateInFile() returns EOF for the last value
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
@@ -146,15 +148,15 @@ func AddColumn (fh *entries.FileHandler, tb *types.Table_t, colName string, colT
 
 
 // Returns number of bytes written and error
-func appendNullValuesToFile (fh *entries.FileHandler, col *types.Column_t, currentPos int64) (int, error) {
+func appendNullValuesToFile (tb *types.Table_t, col *types.Column_t, currentPos int64) (int, error) {
     if col.Type == types.VARCHAR {
-        err := types.AllocateInFile(fh.Path, int64(currentPos), int64(1))
+        err := types.AllocateInFile(tb.MetaData.FilePath, int64(currentPos), int64(1))
         if err != nil {
             return 0, err
         }
         return 1, nil
     }
-    err := types.AllocateInFile(fh.Path, int64(currentPos), int64(col.Size))
+    err := types.AllocateInFile(tb.MetaData.FilePath, int64(currentPos), int64(col.Size))
     if err != nil {
         return 0, err
     }
@@ -163,19 +165,19 @@ func appendNullValuesToFile (fh *entries.FileHandler, col *types.Column_t, curre
 
 
 
-func insertColumnToFile (fh *entries.FileHandler, tb *types.Table_t, col *types.Column_t) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func insertColumnToFile ( tb *types.Table_t, col *types.Column_t) error {
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
     defer f.Close()
 
-    if err = types.AllocateInFile(fh.Path, int64(tb.StartEntries), int64(col.GetColSize())); err != nil {
+    if err = types.AllocateInFile(tb.MetaData.FilePath, int64(tb.StartEntries), int64(col.GetColSize())); err != nil {
         return err
     }
     fmt.Println(f)
 
-    if err = WriteColumnAtOffset(fh, col, int64(tb.StartEntries)); err != nil {
+    if err = WriteColumnAtOffset(tb, col, int64(tb.StartEntries)); err != nil {
         return err
     }
 
@@ -185,8 +187,8 @@ func insertColumnToFile (fh *entries.FileHandler, tb *types.Table_t, col *types.
 
 
 
-func WriteColumnAtOffset (fh *entries.FileHandler, col *types.Column_t, offset int64) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func WriteColumnAtOffset (tb *types.Table_t, col *types.Column_t, offset int64) error {
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
@@ -213,7 +215,7 @@ func WriteColumnAtOffset (fh *entries.FileHandler, col *types.Column_t, offset i
 
 
 
-func moveBtreeEntries (root **btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t, colSize int, colTypeSize int) error {
+func moveBtreeEntries (root *btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t, colSize int, colTypeSize int) error {
     fmt.Println("Moving btree entries")
     *entryList = createEntryListSortedByOffset(root, current, entryList)
     fmt.Println(entryList)
@@ -225,7 +227,7 @@ func moveBtreeEntries (root **btree.Node_t, current *btree.Node_t, entryList *[]
 }
 
 
-func updateBtreeValues(root **btree.Node_t, current *btree.Node_t, entryList*[]btree.Entry_t, colSize int, colTypeSize int) error {
+func updateBtreeValues(root *btree.Node_t, current *btree.Node_t, entryList*[]btree.Entry_t, colSize int, colTypeSize int) error {
     if current == nil {
         return nil
     }
@@ -249,7 +251,7 @@ func updateBtreeValues(root **btree.Node_t, current *btree.Node_t, entryList*[]b
 }
 
 
-func createEntryListSortedByOffset(root **btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t) []btree.Entry_t {
+func createEntryListSortedByOffset(root *btree.Node_t, current *btree.Node_t, entryList *[]btree.Entry_t) []btree.Entry_t {
     if current == nil {
         return *entryList
     }
@@ -296,7 +298,7 @@ func findIndex (arr []btree.Entry_t, key any) int {
 
 
 
-func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types.Column_t, defaultValue any) error {
+func insertDefaultValue(tb *types.Table_t, newCol types.Column_t, defaultValue any) error {
     insertSize := newCol.Size
     if newCol.Type == types.VARCHAR {
         s, ok := defaultValue.(string)
@@ -317,7 +319,7 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
         currentPos += uint16(entries.GetEntryLength(buffer))
         fmt.Println("\n\n\nWriting", insertSize, "Bytes at", currentPos)
         fmt.Println("Writing", defaultValue)
-        bytesWritten, err := writeInFile(fh, int64(currentPos), int64(insertSize), defaultValue, newCol.Type)
+        bytesWritten, err := writeInFile(tb, int64(currentPos), int64(insertSize), defaultValue, newCol.Type)
         if err != nil {
             return err
         }
@@ -325,7 +327,7 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
     }
 
     // write default to EOF 
-    err := writeToEOF(fh, defaultValue, newCol.Type)
+    err := writeToEOF(tb, defaultValue, newCol.Type)
     if err != nil {
         return err
     }
@@ -335,13 +337,13 @@ func insertDefaultValue(tb *types.Table_t, fh *entries.FileHandler, newCol types
 
 
 
-func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultValue any, dvType types.Type_t) (int, error){
-    err := types.AllocateInFile(fh.Path, offset, numBytes)
+func writeInFile(tb *types.Table_t, offset int64, numBytes int64, defaultValue any, dvType types.Type_t) (int, error){
+    err := types.AllocateInFile(tb.MetaData.FilePath, offset, numBytes)
     if err != nil {
         return 0, err
     }
 
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return 0, err
     }
@@ -383,8 +385,8 @@ func writeInFile(fh *entries.FileHandler, offset int64, numBytes int64, defaultV
 
 
 
-func writeToEOF (fh *entries.FileHandler, defaultValue any, tp types.Type_t) error {
-    f, err := os.OpenFile(fh.Path, os.O_RDWR|os.O_CREATE, 0644)
+func writeToEOF (tb *types.Table_t, defaultValue any, tp types.Type_t) error {
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }

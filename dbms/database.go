@@ -49,8 +49,7 @@ func WriteDatabase (db *types.Database_t) error {
     }
     
     for _, table := range db.Tables {
-        path := table.Name+".tb"
-        err = entries.WriteTableToFile(table, path)
+        err = entries.WriteTableToFile(table)
         if err != nil {
             return err
         }
@@ -97,15 +96,11 @@ func ReadDatabase (dbName string) (types.Database_t, error) {
             return types.Database_t{}, err
         }
         fmt.Println("Read this tablename", string(buffer))
-        fh := entries.FileHandler{
-            Path: string(buffer)+".tb",
-        }
-        newTB := types.Table_t{}
-        err = fh.ReadTableFromFile(&newTB, 0)
+        newTB, err := entries.ReadTableFromFile(string(buffer))
         if err != nil {
             return types.Database_t{}, err
         }
-        newDB.Tables = append(newDB.Tables, &newTB)
+        newDB.Tables = append(newDB.Tables, newTB)
     }
     return newDB, nil
 }
