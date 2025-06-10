@@ -9,6 +9,10 @@ import (
 )
 
 func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
+    if len (bytes) == 0 {
+        fmt.Println("Empty set")
+        return 
+    }
     rowSeparator := "+"
     for i, col := range tb.Columns {
         maxLengths[i] = max(len(col.Name), maxLengths[i])

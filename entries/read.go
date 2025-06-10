@@ -9,81 +9,61 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-// data may be any as there is a type assertion. Future ToDo: change so that all types can be read from file via one method
-func ReadTableFromFile (path string, data any, offset int64) error {
+func ReadTableFromFile (path string) (*types.Table_t, error) {
     f, err := os.Open(path)
     if err != nil {
-        return err
+        return nil, err
     }
     defer f.Close()
 
-    _, err = f.Seek(offset, 0)
+    _, err = f.Seek(0, 0)
     if err != nil {
-        return err
+        return nil, err
     }
 
-    tb, ok := data.(*types.Table_t)
-    if ok {
-        // Read table
-        err := binary.Read(f, binary.LittleEndian, &tb.NumOfColumns)
+    // Read table
+    tb := types.Table_t{}
+    err = binary.Read(f, binary.LittleEndian, &tb.NumOfColumns)
+    if err != nil {
+        fmt.Println("Err")
+        fmt.Println(err)
+        return nil, err
+    }
+    
+
+    bytes, err := ReadStringFromFile (f, types.MAX_TABLE_NAME_LENGTH)
+    if err != nil {
+        return nil, err
+    }
+    tb.Name = string(bytes)
+
+    curPos, _ := f.Seek(0, 1)
+    fmt.Println("before reading start entries", curPos)
+    err = binary.Read(f, binary.LittleEndian, &tb.StartEntries)
+    if err != nil {
+        return nil, err
+    }
+    fmt.Println("reading this as starentries", tb.StartEntries)
+
+    err = binary.Read(f, binary.LittleEndian, &tb.OffsetToLastEntry)
+    if err != nil {
+        return nil, err
+    }
+
+    tb.Columns = make([]types.Column_t, tb.NumOfColumns)
+    // read columns
+    fmt.Println(tb.NumOfColumns)
+    for i := range tb.NumOfColumns {
+        offset, err := f.Seek(0, 1)
         if err != nil {
-            fmt.Println("Err")
+            fmt.Println("Error getting seek")
+        }
+        tb.Columns[i], err = ReadColumnFromFile(f, offset)
+        if err != nil {
             fmt.Println(err)
-            return err
         }
-        
-
-        bytes, err := ReadStringFromFile (f, types.MAX_TABLE_NAME_LENGTH)
-        if err != nil {
-            return err
-        }
-        tb.Name = string(bytes)
-
-        curPos, _ := f.Seek(0, 1)
-        fmt.Println("before reading start entries", curPos)
-        err = binary.Read(f, binary.LittleEndian, &tb.StartEntries)
-        if err != nil {
-            return err
-        }
-        fmt.Println("reading this as starentries", tb.StartEntries)
-
-        err = binary.Read(f, binary.LittleEndian, &tb.OffsetToLastEntry)
-        if err != nil {
-            return err
-        }
-
-        tb.Columns = make([]types.Column_t, tb.NumOfColumns)
-        // read columns
-        fmt.Println(tb.NumOfColumns)
-        for i := range tb.NumOfColumns {
-            offset, err := f.Seek(0, 1)
-            if err != nil {
-                fmt.Println("Error getting seek")
-            }
-            tb.Columns[i], err = ReadColumnFromFile(f, offset)
-            if err != nil {
-                fmt.Println(err)
-            }
-        }
-
-
-
-        return nil
     }
-
-    _, ok = data.(types.Column_t)
-    if ok {
-        
-        return nil
-    }
-
-    _, ok = data.(types.Database_t)
-    if ok {
-        
-        return nil
-    }
-
-    return errors.New("Cannot read this type/Invalid data")
+    return nil, errors.New("Cannot read this type/Invalid data")
 }
 
 

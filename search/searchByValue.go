@@ -23,12 +23,15 @@ func IterateOverEntries(tb *types.Table_t){
 
 
 
-func IterateOverEntriesInFile (tb *types.Table_t) ([][][]byte, []int, error) {
+func IterateOverEntriesInFile (tb *types.Table_t, limit uint16) ([][][]byte, []int, error) {
     fmt.Println("Iterating over entries on file!!!!!!")
     maxLengths := make([]int, len(tb.Columns))
     currentPos := tb.StartEntries
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
+        if uint16(len(values)) >= limit {
+            break
+        }
         fmt.Println("Reading entry at", currentPos)
         buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {

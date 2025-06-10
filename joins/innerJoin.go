@@ -18,7 +18,7 @@ type joinCompareObj struct {
     }
 }
 
-func InnerJoinIndexed (left, right * types.Table_t, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
+func InnerJoinIndexed (left, right * types.Table_t, leftCol, rightCol string) (values [][][]byte, joinedTb *types.Table_t, maxLengths []int, err error) {
     fmt.Println("Joining ", left.Name, " and ", right.Name)
     leftIndex, err := entries.StringToColumnIndex(left, leftCol)
     if err != nil {
@@ -55,10 +55,10 @@ func InnerJoinIndexed (left, right * types.Table_t, leftCol, rightCol string) ([
     if err != nil {
         return [][][]byte{}, nil, []int{}, err
     }
-    maxLengths := make([]int, len(newTb.Columns))
+    maxLengths = make([]int, len(newTb.Columns))
 
     currentPos := left.StartEntries
-    values := [][][]byte{}
+    values = [][][]byte{}
     fmt.Println(left)
     fmt.Println(right)
     fmt.Print("\n\n\n\n\n\n")
@@ -112,7 +112,7 @@ func displayTableAndColumn (table * types.Table_t, colIndex int) string {
 func mergeTables (left, right *types.Table_t, joinCols[] struct{
         left int;
         right int;
-    }) (*types.Table_t, error) {
+    }) (mergedTable *types.Table_t, err error) {
     left_cols := make([]types.Column_t, left.NumOfColumns)
     copy(left_cols, left.Columns)
     right_cols := make([]types.Column_t, right.NumOfColumns)
@@ -136,13 +136,13 @@ func mergeTables (left, right *types.Table_t, joinCols[] struct{
         }
         right_cols[i].Name = right.Name + "." + right_cols[i].Name
     }
-    newTb := types.Table_t {
+    mergedTable = &types.Table_t {
         NumOfColumns: left.NumOfColumns + right.NumOfColumns - uint32(len(joinCols)),
         Name: "tmp_" + left.Name + "_" + right.Name,
         Columns: append(left_cols, right_cols...),
     }
     
-    return &newTb, nil
+    return mergedTable, nil
 }
 
 
@@ -150,7 +150,7 @@ func mergeTables (left, right *types.Table_t, joinCols[] struct{
 // Like InnerJoinIndexedSingleCol but left has values in memory 
 // Right must still be indexed
 // -> useful for multiple joins ("JOIN t1 ON ... JOIN t2 ON ...")
-func InnerJoinIndexedChained (left, right * types.Table_t, leftValues [][][]byte, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
+func InnerJoinIndexedChained (left, right * types.Table_t, leftValues [][][]byte, leftCol, rightCol string) (values [][][]byte, joinedTb *types.Table_t, maxLengths []int, err error) {
     fmt.Println("Joining ", left.Name, " and ", right.Name)
     leftIndex, err := entries.StringToColumnIndex(left, leftCol)
     if err != nil {
@@ -187,10 +187,10 @@ func InnerJoinIndexedChained (left, right * types.Table_t, leftValues [][][]byte
     if err != nil {
         return [][][]byte{}, nil, []int{}, err
     }
-    maxLengths := make([]int, len(newTb.Columns))
+    maxLengths = make([]int, len(newTb.Columns))
 
     currentPos := left.StartEntries
-    values := [][][]byte{}
+    values = [][][]byte{}
     fmt.Println(left)
     fmt.Println(right)
     fmt.Print("\n\n\n\n\n\n")
