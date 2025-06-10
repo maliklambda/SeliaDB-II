@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,13 +11,13 @@ func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
     rowSeparator := "+"
     for i, col := range tb.Columns {
         maxLengths[i] = max(len(col.Name), maxLengths[i])
-        rowSeparator += strings.Repeat("-", maxLengths[i]) + "+"
+        rowSeparator += strings.Repeat("-", maxLengths[i]+2) + "+"
     }
     rowSeparator += "\n"
     fmt.Print(rowSeparator)
     for i, col := range tb.Columns {
-        fmt.Print("|")
-        spaces := strings.Repeat(" ", maxLengths[i]-len(col.Name))
+        fmt.Print("| ")
+        spaces := strings.Repeat(" ", maxLengths[i]-len(col.Name)+1)
         fmt.Print(col.Name, spaces)
     }
     fmt.Println("|")
@@ -29,8 +30,8 @@ func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
                 fmt.Print(strings.Repeat(" ", maxLengths[i]))
                 continue
             }
-            fmt.Print(v)
-            fmt.Print(strings.Repeat(" ", (maxLengths[i] - getStdoutLength(v, tb.Columns[i].Type))))
+            fmt.Print(" ", v)
+            fmt.Print(strings.Repeat(" ", (maxLengths[i] - getStdoutLength(v, tb.Columns[i].Type))+1))
         }
         fmt.Println("|")
     }
@@ -41,8 +42,8 @@ func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
 
 func GetDisplayLength (val []byte, tp Type_t) int {
     switch tp {
-    case VARCHAR: return len(string(val))
-    case INT32: return 10
+    case VARCHAR: return len(string(val))-1
+    case INT32: return len(strconv.Itoa(int(int32(binary.LittleEndian.Uint32(val)))))
     }
     return 0
 }

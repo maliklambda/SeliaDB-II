@@ -387,17 +387,3 @@ func ByteSliceToValue (bytes []byte, tp Type_t) (any, error) {
 }
 
 
-
-func InterpretTableWithByteSlice (bytes [][]byte, tb *Table_t) {
-    for i, col := range tb.Columns {
-        fmt.Print(col.Name, ": ")
-        switch col.Type {
-            case VARCHAR: fmt.Println(string(bytes[i]))
-            case INT32: fmt.Println(int32(binary.LittleEndian.Uint32(bytes[i])))
-            case FLOAT32: fmt.Println(math.Float32frombits((binary.LittleEndian.Uint32(bytes[i]))))
-        }
-    }
-}
-
-
-

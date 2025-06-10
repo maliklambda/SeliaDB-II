@@ -147,3 +147,83 @@ func mergeTables (left, right *types.Table_t, joinCols[] struct{
 
 
 
+// Like InnerJoinIndexedSingleCol but left has values in memory 
+// Right must still be indexed
+// -> useful for multiple joins ("JOIN t1 ON ... JOIN t2 ON ...")
+func InnerJoinSingleCol (left, right * types.Table_t, leftValues [][][]byte, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
+    fmt.Println("Joining ", left.Name, " and ", right.Name)
+    leftIndex, err := entries.StringToColumnIndex(left, leftCol)
+    if err != nil {
+        return [][][]byte{}, nil, []int{}, err
+    }
+
+    rightIndex, err := entries.StringToColumnIndex(right, rightCol)
+    if err != nil {
+        return [][][]byte{}, nil, []int{}, err
+    }
+    if !right.IsColIndexed(uint32(rightIndex)){
+        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint("Cannot join on non-indexed column ", displayTableAndColumn(right, rightIndex), "(yet)"))
+    }
+
+    if left.Columns[leftIndex].Type != right.Columns[rightIndex].Type {
+        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint(
+            "Cannot join tables ", displayTableAndColumn(left, leftIndex), " and ",
+            displayTableAndColumn(right, rightIndex),
+            " -> missmatched types"))
+        }
+
+    rightIndicesIndex, err := right.FindIndex(uint32(rightIndex))
+    if err != nil {
+        return [][][]byte{}, nil, []int{}, err
+    }
+    rt := btree.UnsafePAnyToPNode_t(right.Indeces[rightIndicesIndex].Root)
+
+    newTb, err := mergeTables(left, right, []struct {left int; right int}{
+        {left: leftIndex, right: rightIndex},
+    })
+    if err != nil {
+        return [][][]byte{}, nil, []int{}, err
+    }
+    maxLengths := make([]int, len(newTb.Columns))
+
+    currentPos := left.StartEntries
+    values := [][][]byte{}
+    fmt.Println(left)
+    fmt.Println(right)
+    fmt.Print("\n\n\n\n\n\n")
+    for _, buffer := range leftValues {
+        fmt.Println("Reading entry (outer) at", currentPos)
+        currentPos += uint16(entries.GetEntryLength(buffer))
+
+        // find current value from left in right
+        val, err := types.ByteSliceToValue(buffer[leftIndex], left.Columns[leftIndex].Type)
+        if err != nil {
+            return [][][]byte{}, nil, []int{}, err
+        }
+        fmt.Println("finding ", val, " in right-join-column")
+        entry, err := btree.SearchKey(rt, rt, val, right.Columns[rightIndex].Type)
+        if err != nil {
+            continue
+        }
+        
+        // check here for filter on right column -> continue if not met
+
+
+        // remove join column from left
+        rightValues, err := entries.ReadEntryFromFile(right, int(entry.Value))
+        new_vals := append(slices.Delete(buffer, leftIndex, leftIndex +1), rightValues...)
+        // update longest display value
+        types.UpdateLongestDisplay(maxLengths, new_vals, newTb)
+        fmt.Println(maxLengths)
+        values = append(values, new_vals)
+    }
+    fmt.Print("\n\n\n\n\n\n")
+    fmt.Println(right.Indeces)
+    fmt.Println(rightIndicesIndex)
+    btree.Traverse(rt, rt)
+    fmt.Println("Max lengths:", maxLengths)
+    return values, newTb, maxLengths, nil
+}
+
+
+
