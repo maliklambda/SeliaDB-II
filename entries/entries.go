@@ -2,6 +2,7 @@ package entries
 
 import (
 	"encoding/binary"
+    "math"
 	"errors"
 	"fmt"
 	"os"
@@ -18,19 +19,31 @@ func AddEntry (tb *types.Table_t, values ... any) error {
     }
     var entry []byte
     var err error
-    for i := range tb.NumOfColumns {
-        // fmt.Println(reflect.TypeOf(values[i]))
-        s, ok := values[i].(string)
-        if ok {
-            fmt.Println("string:", s)
-            entry = append(entry, s+"\000"...)
-        }
-        n, ok := values[i].(int32)
-        if ok {
-            fmt.Println("int32:", int32(n))
-            entry, err = binary.Append(entry, binary.LittleEndian, int32(n))
-            if err != nil {
-                return err
+    for i, col := range tb.Columns {
+        switch col.Type {
+        case types.VARCHAR:
+            s, ok := values[i].(string)
+            if ok {
+                fmt.Println("string:", s)
+                entry = append(entry, s+"\000"...)
+            }
+        case types.INT32:
+            n, ok := values[i].(int32)
+            if ok {
+                fmt.Println("int32:", int32(n))
+                entry, err = binary.Append(entry, binary.LittleEndian, int32(n))
+                if err != nil {
+                    return err
+                }
+            }
+        case types.FLOAT32:
+            f, ok := values[i].(float32)
+            if ok {
+                fmt.Println("float32:", float32(f))
+                entry, err = binary.Append(entry, binary.LittleEndian, float32(f))
+                if err != nil {
+                    return err
+                }
             }
         }
     }
@@ -119,7 +132,8 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
     currentPosition := 0
     for _, col := range tb.Columns {
         fmt.Print(col.Name, ": ", col.Type.String(), " (", col.Size, "): ")
-        if col.Type == types.VARCHAR {
+        switch col.Type {
+        case types.VARCHAR:
             buff := make([]byte, 0)
             buffRead := make([]byte, 1)
             for range col.Size {
@@ -139,7 +153,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
             fmt.Print(string(buff), " ")
             fmt.Println(buff)
             values = append(values, buff)
-        } else if col.Type == types.INT32 {
+        case types.INT32:
             bt := make([]byte, col.Size)
             _, err := f.Read(bt)
             if err != nil {
@@ -147,6 +161,18 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
             }
             currentPosition += int(col.Size)
             val := int32(binary.LittleEndian.Uint32(bt))
+            fmt.Print(val, " ")
+            fmt.Println(bt)
+            values = append(values, bt)
+        case types.FLOAT32:
+            bt := make([]byte, col.Size)
+            _, err := f.Read(bt)
+            if err != nil {
+                return [][]byte{}, err
+            }
+            currentPosition += int(col.Size)
+            bits := binary.LittleEndian.Uint32(bt)
+            val := math.Float32frombits(bits)
             fmt.Print(val, " ")
             fmt.Println(bt)
             values = append(values, bt)

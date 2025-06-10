@@ -89,7 +89,7 @@ func FindColNameIndex (tb * types.Table_t, colName string) (int, error) {
             return i, nil
         }
     }
-    return -1, errors.New(fmt.Sprintf("Column %s does not exist in table", colName))
+    return -1, errors.New(fmt.Sprintf("Column %s does not exist in table %s", colName, tb.Name))
 }
 
 

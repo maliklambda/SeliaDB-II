@@ -18,7 +18,7 @@ type joinCompareObj struct {
     }
 }
 
-func InnerJoinIndexedSingleCol (left, right * types.Table_t, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
+func InnerJoinIndexed (left, right * types.Table_t, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
     fmt.Println("Joining ", left.Name, " and ", right.Name)
     leftIndex, err := entries.StringToColumnIndex(left, leftCol)
     if err != nil {
@@ -91,7 +91,7 @@ func InnerJoinIndexedSingleCol (left, right * types.Table_t, leftCol, rightCol s
         rightValues, err := entries.ReadEntryFromFile(right, int(entry.Value))
         new_vals := append(slices.Delete(buffer, leftIndex, leftIndex +1), rightValues...)
         // update longest display value
-        types.UpdateLongestDisplay(maxLengths, new_vals, newTb)
+        maxLengths = types.UpdateLongestDisplay(maxLengths, new_vals, newTb)
         fmt.Println(maxLengths)
         values = append(values, new_vals)
     }
@@ -150,7 +150,7 @@ func mergeTables (left, right *types.Table_t, joinCols[] struct{
 // Like InnerJoinIndexedSingleCol but left has values in memory 
 // Right must still be indexed
 // -> useful for multiple joins ("JOIN t1 ON ... JOIN t2 ON ...")
-func InnerJoinSingleCol (left, right * types.Table_t, leftValues [][][]byte, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
+func InnerJoinIndexedChained (left, right * types.Table_t, leftValues [][][]byte, leftCol, rightCol string) ([][][]byte, *types.Table_t, []int, error) {
     fmt.Println("Joining ", left.Name, " and ", right.Name)
     leftIndex, err := entries.StringToColumnIndex(left, leftCol)
     if err != nil {
@@ -177,6 +177,9 @@ func InnerJoinSingleCol (left, right * types.Table_t, leftValues [][][]byte, lef
         return [][][]byte{}, nil, []int{}, err
     }
     rt := btree.UnsafePAnyToPNode_t(right.Indeces[rightIndicesIndex].Root)
+    if rt == nil || rt.Entries == nil {
+        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprintf("Root of %s.%s is Nil.", right.Name, right.Columns[rightIndex].Name))
+    }
 
     newTb, err := mergeTables(left, right, []struct {left int; right int}{
         {left: leftIndex, right: rightIndex},
@@ -213,13 +216,11 @@ func InnerJoinSingleCol (left, right * types.Table_t, leftValues [][][]byte, lef
         rightValues, err := entries.ReadEntryFromFile(right, int(entry.Value))
         new_vals := append(slices.Delete(buffer, leftIndex, leftIndex +1), rightValues...)
         // update longest display value
-        types.UpdateLongestDisplay(maxLengths, new_vals, newTb)
+        maxLengths = types.UpdateLongestDisplay(maxLengths, new_vals, newTb)
         fmt.Println(maxLengths)
         values = append(values, new_vals)
     }
     fmt.Print("\n\n\n\n\n\n")
-    fmt.Println(right.Indeces)
-    fmt.Println(rightIndicesIndex)
     btree.Traverse(rt, rt)
     fmt.Println("Max lengths:", maxLengths)
     return values, newTb, maxLengths, nil

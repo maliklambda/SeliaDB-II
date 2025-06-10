@@ -36,7 +36,7 @@ func IterateOverEntriesInFile (tb *types.Table_t) ([][][]byte, []int, error) {
         }
         fmt.Println("Buffer len:",entries.GetEntryLength(buffer))
         values = append(values, buffer)
-        types.UpdateLongestDisplay(maxLengths, buffer, tb)
+        maxLengths = types.UpdateLongestDisplay(maxLengths, buffer, tb)
         currentPos += uint16(entries.GetEntryLength(buffer))
     }
     fmt.Println("Here")

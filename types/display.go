@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -31,7 +32,7 @@ func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
                 continue
             }
             fmt.Print(" ", v)
-            fmt.Print(strings.Repeat(" ", (maxLengths[i] - getStdoutLength(v, tb.Columns[i].Type))+1))
+            fmt.Print(strings.Repeat(" ", (maxLengths[i] - GetDisplayLength(v, tb.Columns[i].Type))+1))
         }
         fmt.Println("|")
     }
@@ -40,36 +41,45 @@ func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
 }
 
 
-func GetDisplayLength (val []byte, tp Type_t) int {
+func GetDisplayLengthByte (val []byte, tp Type_t) int {
     switch tp {
     case VARCHAR: return len(string(val))-1
     case INT32: return len(strconv.Itoa(int(int32(binary.LittleEndian.Uint32(val)))))
+    case FLOAT32: 
+        f := math.Float32frombits(binary.LittleEndian.Uint32(val))
+        return len(strings.TrimRight(fmt.Sprintf("%.4f", f), "0"))
     }
     return 0
 }
 
 
 
-func getStdoutLength (v any, tp Type_t) int {
+func GetDisplayLength (v any, tp Type_t) int {
     switch tp {
     case VARCHAR: return max(len(v.(string))-1, 0)
     case INT32: return len(strconv.Itoa(int(v.(int32))))
+    case FLOAT32: 
+        return len(strings.TrimRight(fmt.Sprintf("%.4f", v.(float32)), "0"))
     }
     return 0
 }
 
 
 
-func UpdateLongestDisplay (maxLengths []int, bytes [][]byte, tb *Table_t){
+func UpdateLongestDisplay (maxLengths []int, bytes [][]byte, tb *Table_t) []int {
     var length int
     for i, col := range tb.Columns {
-        length = GetDisplayLength(bytes[i], col.Type)
+        length = GetDisplayLengthByte(bytes[i], col.Type)
         if length > maxLengths[i] {
             maxLengths[i] = length
         }
     }
     fmt.Println(maxLengths)
+    return maxLengths
 }
 
 
 
+func DisplayErrorMessage (err error) {
+    fmt.Println(err.Error())
+}
