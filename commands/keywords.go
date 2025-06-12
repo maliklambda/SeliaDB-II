@@ -14,7 +14,7 @@ const (
 )
 
 
-var CommandKeyWordMap = map[string] CommandKeyWord {
+var commandKeyWordMap = map[string] CommandKeyWord {
     "SELECT": SELECT,
     "INSERT": INSERT,
     "DELETE": DELETE,
@@ -23,7 +23,7 @@ var CommandKeyWordMap = map[string] CommandKeyWord {
 
 
 func GetCommandKeyWord (s string) CommandKeyWord {
-    cmd, ok := CommandKeyWordMap[s]
+    cmd, ok := commandKeyWordMap[s]
     if !ok {
         return NONE
     }

@@ -13,7 +13,13 @@ import (
 func ParseQuery (query string, db *types.Database_t) (error) {
     fmt.Println("parsing:", query)
     query = prepareQuery(query)
+    if query == "" {
+        return errors.New("Received empty query")
+    }
     commandIndex := strings.Index(query, " ")
+    if commandIndex < 0 {
+        return errors.New("invalid query")
+    }
     command := GetCommandKeyWord(query[:commandIndex])
     switch command {
     case SELECT:
@@ -34,14 +40,27 @@ func ParseQuery (query string, db *types.Database_t) (error) {
 
 func prepareQuery (oldQuery string) (newQuery string) {
     newQuery = strings.Join(strings.Split(strings.Trim(oldQuery, " "), " "), " ")
-    newQuery = strings.ReplaceAll(newQuery, "from", "FROM")
-    newQuery = strings.ReplaceAll(newQuery, "where", "WHERE")
-    newQuery = strings.ReplaceAll(newQuery, "and", "AND")
-    newQuery = strings.ReplaceAll(newQuery, "limit", "LIMIT")
-    newQuery = strings.ReplaceAll(newQuery, "select", "SELECT")
-    newQuery = strings.ReplaceAll(newQuery, "insert", "INSERT")
-    newQuery = strings.ReplaceAll(newQuery, "delete", "DELETE")
-    newQuery = strings.ReplaceAll(newQuery, "update", "UPDATE")
+    newQuery = strings.ReplaceAll(newQuery, " from ", " FROM ")
+    newQuery = strings.ReplaceAll(newQuery, " where ", " WHERE ")
+    newQuery = strings.ReplaceAll(newQuery, " and ", " AND ")
+    newQuery = strings.ReplaceAll(newQuery, " limit ", " LIMIT ")
+    newQuery = strings.ReplaceAll(newQuery, "select ", "SELECT ")
+    newQuery = strings.ReplaceAll(newQuery, "insert ", "INSERT ")
+    newQuery = strings.ReplaceAll(newQuery, "delete ", "DELETE ")
+    newQuery = strings.ReplaceAll(newQuery, "update ", "UPDATE ")
+    newQuery = strings.ReplaceAll(newQuery, " join ", " JOIN ")
+    newQuery = strings.ReplaceAll(newQuery, " on ", " ON ")
+    newQuery = strings.ReplaceAll(newQuery, " inner ", " INNER ")
+    newQuery = strings.ReplaceAll(newQuery, " left ", " LEFT ")
+    newQuery = strings.ReplaceAll(newQuery, " right ", " RIGHT ")
+    newQuery = strings.ReplaceAll(newQuery, " outer ", " OUTER ")
+    newQuery = strings.ReplaceAll(newQuery, " as ", " AS ")
+    newQuery = strings.ReplaceAll(newQuery, " < ", "<")
+    newQuery = strings.ReplaceAll(newQuery, " > ", ">")
+    newQuery = strings.ReplaceAll(newQuery, " = ", "=")
+    newQuery = strings.ReplaceAll(newQuery, " <= ", "<=")
+    newQuery = strings.ReplaceAll(newQuery, " >= ", ">=")
+    newQuery = strings.ReplaceAll(newQuery, " != ", "!=")
     return newQuery
 }
 
