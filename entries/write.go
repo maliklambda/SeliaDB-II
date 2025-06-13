@@ -78,6 +78,20 @@ func WriteTableToFile (tb *types.Table_t) error {
     fmt.Println("after: Writing this as tb EndOfTableData", tb.EndOfTableData)
     fmt.Println("after: Writing at", posEndTableData)
 
+    _, err = f.Seek(0, 2)
+    if err != nil {
+        return err
+    }
+    _, err = f.Write([]byte(strings.Repeat("\000", types.GetTableDataBuffer())))
+    if err != nil {
+        return err
+    }
+
+    pos, err = f.Seek(0, 2)
+    if err != nil {
+        return err
+    }
+    fmt.Println("\n\nHere we have", pos)
     tb.StartEntries = uint16(pos)
     _, err = f.Seek(posStartEntries, 0)
     if err != nil {
@@ -122,6 +136,8 @@ func WriteColumnToFile (col types.Column_t, offset int64, f * os.File) error{
     return nil
 
 }
+
+
 
 
 func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
@@ -194,8 +210,46 @@ func UpdateEndOfTableData (path string, newEndOfTableData uint16) error {
         return err
     }
 
-    pos, _ := f.Seek(0, 1)
+    // now at correct pos in file
+    pos, err := f.Seek(0, 1)
+    if err != nil {
+        return err
+    }
+    var oldEndOfTableData uint16
+    err = binary.Read(f, binary.LittleEndian, &oldEndOfTableData)
+    if err != nil {
+        return err
+    }
+
     fmt.Println(pos)
+
+    _, err = f.Seek(int64(binary.Size(uint16(1))), 1)
+    if err != nil {
+        return err
+    }
+
+    // Read StartEntries
+    var StartEntries uint16
+    err = binary.Read(f, binary.LittleEndian, &StartEntries)
+    if err != nil {
+        return err
+    }
+
+    if StartEntries <= newEndOfTableData {
+        fmt.Println("doubling eot-buffer-length")
+        StartEntries += uint16(types.GetTableDataBuffer())
+        err = types.AllocateInFile(path, int64(oldEndOfTableData), int64(types.GetTableDataBuffer()))
+        if err != nil {
+            return err
+        }
+    }
+
+    // write new eot data
+    _, err = f.Seek(pos, 0)
+    if err != nil {
+        return err
+    }
+
     err = binary.Write(f, binary.LittleEndian, newEndOfTableData)
     if err != nil {
         return err
@@ -312,11 +366,13 @@ func AppendEntryToFileTwo (tb *types.Table_t, entry []byte) error {
         return err
     }
 
-    if pos == int64(tb.EndOfTableData){
+    if pos != int64(tb.EndOfTableData){
         _, err = f.Write([]byte(strings.Repeat("\000", types.GetEntryBuffer())))
         if err != nil {
             return err
         }
+    } else {
+        fmt.Println("here\n\n\n")
     }
 
     p, _ := f.Seek(0, 1)

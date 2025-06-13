@@ -54,12 +54,12 @@ type Index_t struct {
     Root * any // * btree.Node_t
 }
 
-var tableDataBuffer int = 50
+var tableDataBuffer int = 20
 func GetTableDataBuffer () int{
     return tableDataBuffer
 }
 
-var entryBuffer int = 100
+var entryBuffer int = 10
 
 func GetEntryBuffer () int{
     return entryBuffer
