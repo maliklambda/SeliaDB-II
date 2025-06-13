@@ -27,7 +27,6 @@ func DeleteAllEntries (tb *types.Table_t) error {
     if err != nil {
         return err
     }
-    UpdateOffsetLastEntry(tb.MetaData.FilePath, 0)
     return nil
 }
 

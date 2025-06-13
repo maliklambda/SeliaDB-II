@@ -50,7 +50,7 @@ func AddEntry (tb *types.Table_t, values ... any) error {
     tb.Entries.Values = append(tb.Entries.Values, entry)
     tb.Entries.NumOfEntries ++
     fmt.Println(entry)
-    err = AppendEntryToFile(tb, entry)
+    err = AppendEntryToFileTwo(tb, entry)
     if err != nil {
         fmt.Println("Error writing entry to file", err)
         return err

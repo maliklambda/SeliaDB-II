@@ -26,7 +26,7 @@ func IterateOverEntries(tb *types.Table_t){
 func IterateOverEntriesInFile (tb *types.Table_t, limit uint16) ([][][]byte, []int, error) {
     fmt.Println("Iterating over entries on file!!!!!!")
     maxLengths := make([]int, len(tb.Columns))
-    currentPos := tb.StartEntries
+    var currentPos uint32 = uint32(tb.StartEntries) + uint32(types.GetEntryBuffer())
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
         if uint16(len(values)) >= limit {
@@ -40,7 +40,7 @@ func IterateOverEntriesInFile (tb *types.Table_t, limit uint16) ([][][]byte, []i
         fmt.Println("Buffer len:",entries.GetEntryLength(buffer))
         values = append(values, buffer)
         maxLengths = types.UpdateLongestDisplay(maxLengths, buffer, tb)
-        currentPos += uint16(entries.GetEntryLength(buffer))
+        currentPos += uint32(entries.GetEntryLength(buffer)) 
     }
     fmt.Println("Here")
     fmt.Println(values)

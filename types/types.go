@@ -21,8 +21,8 @@ type Database_t struct {
 type Table_t struct {
     NumOfColumns uint32
     Name string
+    EndOfTableData uint16
     StartEntries uint16
-    OffsetToLastEntry uint64
     Columns [] Column_t
     Entries *Entries_t
     Indeces [] Index_t
@@ -52,6 +52,17 @@ type Column_t struct {
 type Index_t struct {
     ColIndex uint32
     Root * any // * btree.Node_t
+}
+
+var tableDataBuffer int = 50
+func GetTableDataBuffer () int{
+    return tableDataBuffer
+}
+
+var entryBuffer int = 100
+
+func GetEntryBuffer () int{
+    return entryBuffer
 }
 
 type Type_t uint8
@@ -220,7 +231,7 @@ func GetOffsetToFirstColumn (tb *Table_t) (int64, error){
     offset := int(unsafe.Sizeof(tb.NumOfColumns)) // NumOfColumns uint32
     offset += len([]byte(tb.Name+"\000")) // Name string
     offset += int(unsafe.Sizeof(tb.StartEntries)) // StartEntries uint16
-    offset += int(unsafe.Sizeof(tb.OffsetToLastEntry)) // OffsetToLastEntry uint64
+    offset += int(unsafe.Sizeof(tb.EndOfTableData)) // EndOfTableData uint16
     return int64(offset), nil
 }
 

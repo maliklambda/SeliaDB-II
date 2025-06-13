@@ -2,9 +2,10 @@ package entries
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
-    "errors"
+	"strings"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/types"
@@ -30,19 +31,21 @@ func WriteTableToFile (tb *types.Table_t) error {
     }
 
 
+    posEndTableData, _ := f.Seek(0, 1)
+    fmt.Println("before writing end tb data", posEndTableData)
+    err = binary.Write(f, binary.LittleEndian, tb.EndOfTableData)
+    if err != nil {
+        return err
+    }
+    fmt.Println("Writing this as tb EndOfTableData", tb.EndOfTableData)
+
     posStartEntries, _ := f.Seek(0, 1)
     fmt.Println("before writing start entries", posStartEntries)
     err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
     if err != nil {
         return err
     }
-    fmt.Println("Writing this as starentries", tb.StartEntries)
-
-    fmt.Println("Writing this as offset to last entry", tb.OffsetToLastEntry)
-    err = binary.Write(f, binary.LittleEndian, tb.OffsetToLastEntry)
-    if err != nil {
-        return err
-    }
+    fmt.Println("Writing this as tb start entries", tb.StartEntries)
 
     for _, col := range tb.Columns {
         offset, err := f.Seek(0,1)
@@ -61,8 +64,21 @@ func WriteTableToFile (tb *types.Table_t) error {
         return err
     }
     fmt.Println("Offset to entry-start: ", pos)
-    tb.StartEntries = uint16(pos)
+    tb.EndOfTableData = uint16(pos)
 
+    _, err = f.Seek(posEndTableData, 0)
+    if err != nil {
+        return err
+    }
+
+    err = binary.Write(f, binary.LittleEndian, tb.EndOfTableData)
+    if err != nil {
+        return err
+    }
+    fmt.Println("after: Writing this as tb EndOfTableData", tb.EndOfTableData)
+    fmt.Println("after: Writing at", posEndTableData)
+
+    tb.StartEntries = uint16(pos)
     _, err = f.Seek(posStartEntries, 0)
     if err != nil {
         return err
@@ -72,22 +88,9 @@ func WriteTableToFile (tb *types.Table_t) error {
     if err != nil {
         return err
     }
-    err = DeleteAllEntries(tb)
-    if err != nil {
-        fmt.Println("Error deleting entries:", err)
-        return err
-    }
+    fmt.Println("after: Writing this as StartEntries", tb.StartEntries)
+    fmt.Println("after: Writing at", posStartEntries)
 
-    tb.OffsetToLastEntry = 0
-    fmt.Println("starting offset:", tb.StartEntries)
-    if tb.Entries != nil {
-        fmt.Println("Priting entries")
-        for i := range tb.Entries.NumOfEntries {
-            fmt.Println(tb.Entries.Values[i])
-            AppendEntryToFile(tb, tb.Entries.Values[i])
-            fmt.Println("new offset:", tb.OffsetToLastEntry)
-        }
-    }
     return nil
 }
 
@@ -129,17 +132,12 @@ func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
     if err != nil {
         return err
     }
-    if tb.OffsetToLastEntry == 0 {
-        tb.OffsetToLastEntry = uint64(tb.StartEntries)
-    }
-    fmt.Println("Currently right here", tb.OffsetToLastEntry)
-    pos, err := f.Seek(int64(tb.OffsetToLastEntry), 0)
+    pos, err := f.Seek(0, 1)
     if err != nil {
         return err
     }
+    _, err = f.Write([]byte(strings.Repeat("\000", types.GetEntryBuffer())))
     fmt.Print("\n\n")
-    fmt.Println("at position:", tb.OffsetToLastEntry + uint64(tb.StartEntries))
-    fmt.Println("last entry:", tb.OffsetToLastEntry)
     fmt.Println("StartEntries:", uint64(tb.StartEntries))
     fmt.Println("num entries", tb.Entries.NumOfEntries)
     fmt.Println(tb.Entries.Values)
@@ -151,25 +149,24 @@ func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
         fmt.Println(index)
         fmt.Println(tb.Columns[i].Type)
         node := btree.UnsafePAnyToPNode_t(index.Root)
-        InsertToBtree(&node, int32(val), uint32(pos), types.INT32)
+        InsertToBtree(&node, int32(val), uint32(pos+int64(types.GetEntryBuffer())), types.INT32)
         
     }
 
+    p,_ := f.Seek(0, 1)
+    fmt.Println("writing entry @", p)
     _, err = f.Write(entry)
     if err != nil {
         return err
     }
-    tb.OffsetToLastEntry += uint64(len(entry))
 
-    fmt.Println(tb.OffsetToLastEntry)
     fmt.Println("Wrote entry successfully")
-    UpdateOffsetLastEntry(tb.MetaData.FilePath, uint16(len(entry)))
     return nil
 }
 
 
 
-func UpdateOffsetLastEntry (path string, newLastEntryOffset uint16) error {
+func UpdateEndOfTableData (path string, newEndOfTableData uint16) error {
     f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
@@ -199,7 +196,7 @@ func UpdateOffsetLastEntry (path string, newLastEntryOffset uint16) error {
 
     pos, _ := f.Seek(0, 1)
     fmt.Println(pos)
-    err = binary.Write(f, binary.LittleEndian, newLastEntryOffset)
+    err = binary.Write(f, binary.LittleEndian, newEndOfTableData)
     if err != nil {
         return err
     }
@@ -300,6 +297,36 @@ func WriteStringToFile (path string, offset int64, s string) error {
     }
     return nil
 
+}
+
+
+
+func AppendEntryToFileTwo (tb *types.Table_t, entry []byte) error {
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR, 0644)
+    if err != nil {
+        return err
+    }
+
+    pos, err := f.Seek(0, 2)
+    if err != nil {
+        return err
+    }
+
+    if pos == int64(tb.EndOfTableData){
+        _, err = f.Write([]byte(strings.Repeat("\000", types.GetEntryBuffer())))
+        if err != nil {
+            return err
+        }
+    }
+
+    p, _ := f.Seek(0, 1)
+    fmt.Println("\n\nWriting entry @", p)
+    _, err = f.Write(entry)
+    if err != nil {
+        return err
+    }
+
+    return nil
 }
 
 
