@@ -113,6 +113,7 @@ const (
     MAX_DATABASE_NAME_LENGTH = 20
     MAX_TABLE_NAME_LENGTH = 20
     MAX_COLUMN_NAME_LENGTH = 20
+    START_ENTRIES = 1000
 )
 
 
@@ -171,11 +172,25 @@ const (
     GREATER_EQUAL
 )
 
+var CompareStrings = map[string]CompareOperator{
+    ">": GREATER,
+    "<": SMALLER,
+    "=": EQUAL,
+    "<=": SMALLER_EQUAL,
+    ">=": GREATER_EQUAL,
+}
+
+func GetCompareOperator (cmpString string) CompareOperator {
+    return CompareStrings[cmpString]
+}
+
+
 type CompareConnector uint8
 
 const (
-    AND = iota
+    AND CompareConnector = iota
     OR
+    MISSING_CONNECTOR
 )
 
 
@@ -387,3 +402,36 @@ func ByteSliceToValue (bytes []byte, tp Type_t) (any, error) {
 }
 
 
+
+type JoinType uint8
+
+const (
+    INNER JoinType = iota
+    OUTER
+    LEFT 
+    RIGHT
+    MISSING_JOIN_TYPE
+)
+
+
+type Join_t map[string] struct {
+    Left string
+    Right string
+    How JoinType
+}
+
+
+var JoinTypeStrings= map[string]JoinType{
+    "INNER": INNER,
+    "OUTER": OUTER,
+    "LEFT ": LEFT,
+    "RIGHT": RIGHT,
+}
+
+func GetJoinType(s string) JoinType {
+    jt, ok := JoinTypeStrings[s]
+    if !ok {
+        return MISSING_JOIN_TYPE
+    }
+    return jt
+}

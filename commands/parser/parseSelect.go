@@ -9,50 +9,52 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-func ParseSelect (query string, db *types.Database_t) error {
+func ParseSelect (query string, db *types.Database_t) (sourceTable string, selectedColumns []string, joinTables types.Join_t, conditions []types.CompareObj, err error) {
     query = strings.TrimLeft(query, " ")
     // columns
     searchedColumns, curIndex, err := findSearchedColumns(query)
     if err != nil {
-        return err
-    }
-    fmt.Println(searchedColumns)
+        return "", []string{}, types.Join_t{}, []types.CompareObj{}, errors.New(fmt.Sprint("ParseSelect #01", err))
+    } 
+    fmt.Println("searched cols:", searchedColumns)
 
     // table
-    sourceTable, curIndex, err := findSourceTable(query, curIndex)
+    sourceTable, curIndex, err = findSourceTable(query, curIndex)
     if err != nil {
-        return err
+        return "", []string{}, types.Join_t{}, []types.CompareObj{}, errors.New(fmt.Sprint("ParseSelect #02", err))
     }
-    fmt.Println(sourceTable)
+    fmt.Println("source tb:", sourceTable)
     i, err := getTableIndex(sourceTable, db)
     if err != nil {
-        return err
+        return "", []string{}, types.Join_t{}, []types.CompareObj{}, errors.New(fmt.Sprint("ParseSelect #03", err))
     }
     fmt.Println("Found index:", i)
 
     if curIndex < 0 {
         fmt.Println("We are done here -> select * from x;")
-        return nil
+        return sourceTable, selectedColumns, types.Join_t{}, []types.CompareObj{}, nil
     }
 
     // join tables
     joinedTables, curIndex, err := getJoinTables(query, curIndex)
     if err != nil {
-        return err
+        return "", []string{}, types.Join_t{}, []types.CompareObj{}, errors.New(fmt.Sprint("ParseSelect #04", err))
     }
     fmt.Println(joinedTables)
 
     // where conditions
     compareObjs, curIndex, err := getWhereConditions(query, curIndex)
     if err != nil {
-        return err
+        return "", []string{}, types.Join_t{}, []types.CompareObj{}, errors.New(fmt.Sprint("ParseSelect #05", err))
     }
     fmt.Println(compareObjs)
+    
+    // limit
 
     fmt.Println(curIndex)
     fmt.Println(query[curIndex:])
 
-    return nil
+    return sourceTable, selectedColumns, joinTables, compareObjs, nil
 }
 
 
@@ -96,11 +98,8 @@ func getTableIndex (tableName string, db * types.Database_t) (int, error){
 
 
 
-func getJoinTables (query string, startIndex int) (joinTables map[string]struct {
-    Left string
-    Right string},
-    curIndex int, err error){
-    joinColumns := make(map[string]struct {Left string; Right string})
+func getJoinTables (query string, startIndex int) (joinTables types.Join_t, curIndex int, err error){
+    joinTables = types.Join_t{}
     for {
         query = strings.TrimLeft(query, " ")
         joinIndex := strings.Index(query, "JOIN ")
@@ -113,14 +112,14 @@ func getJoinTables (query string, startIndex int) (joinTables map[string]struct 
 
         nextSpace := strings.Index(query, " ")
         if nextSpace < 0 {
-            return map[string]struct{Left string; Right string}{}, startIndex, errors.New("Expected <space>")
+            return types.Join_t{}, startIndex, errors.New("Expected <space>")
         }
-        joinTable := query[:nextSpace]
-        fmt.Println("New join table:", joinTable)
+        joinTableName := query[:nextSpace]
+        fmt.Println("New join table:", joinTableName)
         query = strings.TrimLeft(query[nextSpace:], " ")
         fmt.Println(query[:3])
         if query[:3] != "ON " {
-            return map[string]struct{Left string; Right string}{}, startIndex, errors.New("Must specify ON-columns")
+            return types.Join_t{}, startIndex, errors.New("Must specify ON-columns")
         }
         
         query = strings.TrimLeft(query[2:], " ")
@@ -140,12 +139,13 @@ func getJoinTables (query string, startIndex int) (joinTables map[string]struct 
         }
         fmt.Println("ljc",leftJoinColumn)
         fmt.Println("rjc", rightJoinColumn)
-        joinColumns[joinTable] = struct{Left string; Right string}{
+        joinTables[joinTableName] = struct {Left string; Right string; How types.JoinType}{
             Left: leftJoinColumn,
             Right: rightJoinColumn,
+            How: types.GetJoinType("inner"),
         }
     }
-    return joinColumns, startIndex, nil
+    return joinTables, startIndex, nil
 }
 
 
@@ -168,12 +168,8 @@ func getWhereConditions(query string, startIndex int) (cmpObjs []types.CompareOb
             // return []types.CompareObj{}, curIndex, err
             break
         }
-        fmt.Println(nextOperator, startOffsetToNO, endOffsetToNO, err)
-        fmt.Println("data:")
-        fmt.Println(query[curIndex+startOffsetToNO:])
         var compareVal string
         if query[curIndex+endOffsetToNO] == '\'' {
-            fmt.Println("hererere")
             nextSpace = strings.Index(query[curIndex+endOffsetToNO+1:], "'")
             compareVal = query[curIndex+endOffsetToNO:curIndex+endOffsetToNO+nextSpace+2] // +2 because of the ''
         } else {
@@ -183,8 +179,6 @@ func getWhereConditions(query string, startIndex int) (cmpObjs []types.CompareOb
             } else {
                 compareVal = query[curIndex+endOffsetToNO:curIndex+endOffsetToNO+nextSpace] // +2 because of the ''
             }
-            fmt.Println("current:", query[curIndex+endOffsetToNO:])
-            fmt.Println("now:", compareVal)
         }
         compareCol := query[curIndex:curIndex+startOffsetToNO]
 
@@ -194,7 +188,7 @@ func getWhereConditions(query string, startIndex int) (cmpObjs []types.CompareOb
             CmpOperator: types.GetCompareOperator(nextOperator),
             Connector: curConnector,
         })
-        fmt.Println("\n\ngot:\n", compareCol, nextOperator, compareVal, "\n")
+        fmt.Println("got:", compareCol, nextOperator, compareVal)
 
         fmt.Println(query[curIndex+len(compareVal):])
         if strings.HasPrefix(compareVal, "'"){
@@ -204,8 +198,6 @@ func getWhereConditions(query string, startIndex int) (cmpObjs []types.CompareOb
         }
         curConnector, nextSpace = CheckForContinueConditions(query[curIndex:])
         curIndex += nextSpace
-        fmt.Println("conn", curConnector)
-        fmt.Println("continuing with:", query[curIndex+nextSpace:])
     }
     return cmpObjs, curIndex, nil
 }

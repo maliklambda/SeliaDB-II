@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/MalikL2005/SeliaDB-II/commands/parser"
+	"github.com/MalikL2005/SeliaDB-II/commands/process"
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
@@ -23,7 +23,7 @@ func ParseQuery (query string, db *types.Database_t) (error) {
     command := GetCommandKeyWord(query[:commandIndex])
     switch command {
     case SELECT:
-        err := parser.ParseSelect(query[commandIndex:], db)
+        _, err := process.SELECT(query[commandIndex:], db)
         if err != nil {
             return err
         }
