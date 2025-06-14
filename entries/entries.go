@@ -50,11 +50,15 @@ func AddEntry (tb *types.Table_t, values ... any) error {
     tb.Entries.Values = append(tb.Entries.Values, entry)
     tb.Entries.NumOfEntries ++
     fmt.Println(entry)
-    err = AppendEntryToFileTwo(tb, entry)
+    // write entry to file
+    err = AppendEntryToFile(tb, entry)
     if err != nil {
         fmt.Println("Error writing entry to file", err)
         return err
     }
+    // btree indices
+
+
     return nil
 }
 
@@ -107,25 +111,25 @@ func ReadEntryIndex (tb *types.Table_t, index int) ([][]byte, error) {
 
 
 
-func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
+func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, int64, error) {
     fmt.Println("Reading entry")
     fmt.Println("starting at", offset)
     if tb.Entries == nil {
-        return [][]byte{}, errors.New("Entries cannot be Nil")
+        return [][]byte{}, 0, errors.New("Entries cannot be Nil")
     }
     if tb.Entries.Values == nil {
-        return [][]byte{}, errors.New("Entries->Values cannot be nil")
+        return [][]byte{}, 0, errors.New("Entries->Values cannot be nil")
     }
 
     f, err := os.Open(tb.MetaData.FilePath)
     if err != nil {
-        return [][]byte{}, err
+        return [][]byte{}, 0, err
     }
     defer f.Close()
 
     _, err = f.Seek(int64(offset), 0)
     if err != nil {
-        return [][]byte{}, err
+        return [][]byte{}, 0, err
     }
     
     values := make([][]byte, 0)
@@ -139,7 +143,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
             for range col.Size {
                 _, err := f.Read(buffRead)
                 if err != nil {
-                    return [][]byte{}, err
+                    return [][]byte{}, 0, err
                 }
                 if buffRead[0] == 0 {
                     break
@@ -157,7 +161,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
             bt := make([]byte, col.Size)
             _, err := f.Read(bt)
             if err != nil {
-                return [][]byte{}, err
+                return [][]byte{}, 0, err
             }
             currentPosition += int(col.Size)
             val := int32(binary.LittleEndian.Uint32(bt))
@@ -168,7 +172,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
             bt := make([]byte, col.Size)
             _, err := f.Read(bt)
             if err != nil {
-                return [][]byte{}, err
+                return [][]byte{}, 0, err
             }
             currentPosition += int(col.Size)
             bits := binary.LittleEndian.Uint32(bt)
@@ -178,10 +182,19 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, error) {
             values = append(values, bt)
         }
     }
-    pos, _ := f.Seek(0, 1)
-    fmt.Println("ended at", pos)
 
-    return values, nil
+    // pNextEntry
+    pNextEntry := uint8(0)
+    err = binary.Read(f, binary.LittleEndian, &pNextEntry)
+    if err != nil {
+        return [][]byte{}, 0, err
+    }
+    
+    pos, _ := f.Seek(0, 1)
+    fmt.Println("ended @", pos)
+    fmt.Println("next entry @", pos+int64(pNextEntry)+int64(binary.Size(pNextEntry)))
+
+    return values, int64(pos+int64(pNextEntry)+int64(binary.Size(pNextEntry))), nil
 
 
 }

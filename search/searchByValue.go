@@ -33,14 +33,14 @@ func IterateOverEntriesInFile (tb *types.Table_t, limit uint16) ([][][]byte, []i
             break
         }
         fmt.Println("Reading entry at", currentPos)
-        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
+        buffer, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
             return [][][]byte{}, []int{}, err
         }
-        fmt.Println("Buffer len:",entries.GetEntryLength(buffer))
+        fmt.Println("Next entry:", pNextEntry)
         values = append(values, buffer)
         maxLengths = types.UpdateLongestDisplay(maxLengths, buffer, tb)
-        currentPos += uint32(entries.GetEntryLength(buffer)) + uint32(types.GetEntryBuffer())
+        currentPos = uint32(pNextEntry)
     }
     fmt.Println("Here")
     fmt.Println(values)
@@ -98,7 +98,7 @@ func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types
     returnValues := make([][][]byte, 0)
     cur := tb.StartEntries
     for range tb.Entries.NumOfEntries {
-        entry, err := entries.ReadEntryFromFile(tb, int(cur))
+        entry, _, err := entries.ReadEntryFromFile(tb, int(cur))
         if err != nil {
             return [][][]byte{}, err
         }

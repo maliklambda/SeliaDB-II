@@ -46,6 +46,7 @@ type Column_t struct {
     Name string
     Type Type_t
     Size uint16
+    Indexed bool
 }
 
 
@@ -54,12 +55,12 @@ type Index_t struct {
     Root * any // * btree.Node_t
 }
 
-var tableDataBuffer int = 20
+var tableDataBuffer int = 10
 func GetTableDataBuffer () int{
     return tableDataBuffer
 }
 
-var entryBuffer int = 10
+var entryBuffer int = 20
 
 func GetEntryBuffer () int{
     return entryBuffer

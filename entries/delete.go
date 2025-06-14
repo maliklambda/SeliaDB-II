@@ -81,7 +81,7 @@ func DeleteEntryByPK (tb *types.Table_t, pk any, tp types.Type_t, pkIndex int) e
         return errors.New("PK was not found")
     }
 
-    values, err := ReadEntryFromFile(tb, int(entry.Value))
+    values, _, err := ReadEntryFromFile(tb, int(entry.Value))
     if err != nil {
         return err
     }
@@ -146,7 +146,7 @@ func iterateOverEntriesDelete (tb *types.Table_t, cmp types.CompareObj) error {
     newOffsetsBtree := types.UpdateOffsetList{}
     newOffsetsBtree.UpdateDict = make(map[int]int32)
     for range tb.Entries.NumOfEntries {
-        entry, err := ReadEntryFromFile(tb, int(curOffset))
+        entry, _, err := ReadEntryFromFile(tb, int(curOffset))
         if err != nil {
             return err
         }

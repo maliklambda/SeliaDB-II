@@ -34,7 +34,7 @@ func AddIndex(tb *types.Table_t, colName string) error {
     }
     newRoot := &btree.Node_t{}
     fmt.Println("\n\n\n\nIndexing", colName, "of type", tb.Columns[colIndex].Type)
-    currentPos := tb.StartEntries
+    currentPos := tb.StartEntries + uint16(types.GetEntryBuffer())
     if tb.Entries == nil || tb.Entries.NumOfEntries == 0 {
         tb.Indeces = append(tb.Indeces, types.Index_t{
             ColIndex: uint32(colIndex),
@@ -44,7 +44,7 @@ func AddIndex(tb *types.Table_t, colName string) error {
     }
     for range tb.Entries.NumOfEntries {
         fmt.Println("Reading entry at", currentPos)
-        buffer, err := ReadEntryFromFile(tb, int(currentPos))
+        buffer, pNextEntry, err := ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
             return err
         }
@@ -66,7 +66,7 @@ func AddIndex(tb *types.Table_t, colName string) error {
         if err != nil {
             return err
         }
-        currentPos += uint16(GetEntryLength(buffer))
+        currentPos = uint16(pNextEntry)
     }
     // tb.Indeces = append(tb.Indeces, types.Index_t{Root: (*any)(newRoot)})
 
