@@ -60,9 +60,9 @@ func AddIndex(tb *types.Table_t, colName string) error {
         // case types.FLOAT32:
         // err = InsertToBtree(&newRoot, float32(binary.LittleEndian.(buffer[colIndex])), uint32(currentPos), tb.Columns[colIndex].Type)
         case types.INT32:
-            err = InsertToBtree(&newRoot, int32(binary.LittleEndian.Uint32(buffer[colIndex])), uint32(currentPos), tb.Columns[colIndex].Type)
+            err = InsertToBtree(&newRoot, int32(binary.LittleEndian.Uint32(buffer[colIndex])), uint32(currentPos)- uint32(tb.StartEntries), tb.Columns[colIndex].Type)
         case types.VARCHAR:
-            err = InsertToBtree(&newRoot, string(buffer[colIndex]), uint32(currentPos), tb.Columns[colIndex].Type)
+            err = InsertToBtree(&newRoot, string(buffer[colIndex]), uint32(currentPos) - uint32(tb.StartEntries), tb.Columns[colIndex].Type)
         }
         if err != nil {
             return err
