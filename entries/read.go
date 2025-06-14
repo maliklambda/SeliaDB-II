@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/MalikL2005/SeliaDB-II/types"
+	"github.com/MalikL2005/SeliaDB-II/btree"
 )
 
 func ReadTableFromFile (path string) (*types.Table_t, error) {
@@ -58,6 +59,12 @@ func ReadTableFromFile (path string) (*types.Table_t, error) {
         tb.Columns[i], err = ReadColumnFromFile(f, offset)
         if err != nil {
             fmt.Println(err)
+        }
+        if tb.Columns[i].Indexed {
+            _, err = btree.ReadIndexFromFile(tb.Name, tb.Columns[i].Name)
+            if err != nil {
+                return nil, err
+            }
         }
     }
     return &tb, nil
@@ -112,6 +119,13 @@ func ReadColumnFromFile (f * os.File, offset int64) (types.Column_t, error) {
     err = binary.Read(f, binary.LittleEndian, &colBuffer.Size)
     if err != nil {
         fmt.Println("Error reading coltype")
+        fmt.Println(err)
+        return types.Column_t{}, err
+    }
+
+    err = binary.Read(f, binary.LittleEndian, &colBuffer.Indexed)
+    if err != nil {
+        fmt.Println("Error reading colIndex")
         fmt.Println(err)
         return types.Column_t{}, err
     }

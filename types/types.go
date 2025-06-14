@@ -25,9 +25,9 @@ type Table_t struct {
     StartEntries uint16
     Columns [] Column_t
     Entries *Entries_t
-    Indeces [] Index_t
 
     // this part is not written to file, only kept in memory
+    Indeces [] Index_t
     MetaData TableMetaData_t
 }
 

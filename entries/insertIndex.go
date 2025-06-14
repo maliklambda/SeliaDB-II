@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+    "os"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/types"
@@ -73,6 +74,13 @@ func AddIndex(tb *types.Table_t, colName string) error {
     fmt.Println(newRoot)
     btree.Traverse(newRoot, newRoot)
     fmt.Println("Sucessfully indexed ", colName)
+    fmt.Println(colIndex)
+
+    err = UpdateIsColIndexed(tb, colIndex)
+    if err != nil {
+        return err
+    }
+    
     tb.Indeces = append(tb.Indeces, types.Index_t{
         ColIndex: uint32(colIndex),
         Root: btree.UnsafePNode_tToPAny(newRoot),
@@ -90,6 +98,56 @@ func FindColNameIndex (tb * types.Table_t, colName string) (int, error) {
         }
     }
     return -1, errors.New(fmt.Sprintf("Column %s does not exist in table %s", colName, tb.Name))
+}
+
+
+func UpdateIsColIndexed (tb * types.Table_t, colIndex int) error {
+    if colIndex >= len(tb.Columns){
+        return errors.New(fmt.Sprintf("Column index is too large: got %d but have only %d column(s)", colIndex, len(tb.Columns)))
+    }
+    tb.Columns[colIndex].Indexed = true
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+
+    bufferCol := types.Column_t{}
+    var offset int64
+
+    // Read table
+    startColumns := binary.Size(tb.NumOfColumns) + len([]byte(tb.Name+"\000")) + binary.Size(tb.StartEntries) + binary.Size(tb.EndOfTableData)
+    _, err = f.Seek(int64(startColumns), 0)
+    if err != nil {
+        return err
+    }
+    // read columns
+    fmt.Println(tb.NumOfColumns)
+    for i := range (colIndex+1) {
+        fmt.Println("iterating", i)
+        offset, err = f.Seek(0, 1)
+        if err != nil {
+            return err
+        }
+        bufferCol, err = ReadColumnFromFile(f, offset)
+        if err != nil {
+            return err
+        }
+    }
+    fmt.Println("updating on column:", bufferCol)
+    bufferCol.Indexed = true
+    _, err = f.Seek(offset, 0)
+    if err != nil {
+        return err
+    }
+
+    // write changes to file
+    err = WriteColumnToFile(bufferCol, offset, f)
+    if err != nil {
+        return err
+    }
+
+    return nil
 }
 
 

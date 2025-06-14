@@ -56,7 +56,10 @@ func WriteTableToFile (tb *types.Table_t) error {
         fmt.Printf("Offset: %d\n", offset)
         fmt.Println("column:", col)
         fmt.Println(f)
-        WriteColumnToFile(col, offset, f)
+        err = WriteColumnToFile(col, offset, f)
+        if err != nil {
+            return err
+        }
 
     }
     pos, err := f.Seek(0, 1)
@@ -133,6 +136,12 @@ func WriteColumnToFile (col types.Column_t, offset int64, f * os.File) error{
         fmt.Println("Error writing col size to file")
         return err
     }
+
+    err = binary.Write(f, binary.LittleEndian, col.Indexed)
+    if err != nil {
+        fmt.Println("Error writing col indexed to file")
+        return err
+    }
     return nil
 
 }
@@ -140,7 +149,7 @@ func WriteColumnToFile (col types.Column_t, offset int64, f * os.File) error{
 
 
 
-func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
+func AppendEntryToFileOne (tb *types.Table_t, entry []byte) error {
     fmt.Println("Writing entry to file")
     fmt.Println(entry)
     fmt.Println(tb.MetaData.FilePath)
@@ -152,7 +161,6 @@ func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
     if err != nil {
         return err
     }
-    _, err = f.Write([]byte(strings.Repeat("\000", types.GetEntryBuffer())))
     fmt.Print("\n\n")
     fmt.Println("StartEntries:", uint64(tb.StartEntries))
     fmt.Println("num entries", tb.Entries.NumOfEntries)
@@ -175,6 +183,7 @@ func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
     if err != nil {
         return err
     }
+    _, err = f.Write([]byte(strings.Repeat("\000", types.GetEntryBuffer())))
 
     fmt.Println("Wrote entry successfully")
     return nil
@@ -355,32 +364,36 @@ func WriteStringToFile (path string, offset int64, s string) error {
 
 
 
-func AppendEntryToFileTwo (tb *types.Table_t, entry []byte) error {
+func AppendEntryToFile (tb *types.Table_t, entry []byte) error {
     f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR, 0644)
     if err != nil {
         return err
     }
 
-    pos, err := f.Seek(0, 2)
+    p, _ := f.Seek(0, 2)
+    fmt.Println("buffer len:", types.GetEntryBuffer())
+    fmt.Print("Writing buffer @", p, "\n\n")
+    _, err = f.Write([]byte(strings.Repeat("\000", types.GetEntryBuffer())))
     if err != nil {
         return err
     }
 
-    if pos != int64(tb.EndOfTableData){
-        _, err = f.Write([]byte(strings.Repeat("\000", types.GetEntryBuffer())))
-        if err != nil {
-            return err
-        }
-    } else {
-        fmt.Println("here\n\n\n")
-    }
-
-    p, _ := f.Seek(0, 1)
-    fmt.Println("\n\nWriting entry @", p)
+    p, _ = f.Seek(0, 2)
+    fmt.Println("Entry length:", len(entry))
+    fmt.Print("Writing entry @", p, "\n\n")
     _, err = f.Write(entry)
     if err != nil {
         return err
     }
+
+    // write pointer to next entry (i.e. 0 as it is the last entry)
+    err = binary.Write(f, binary.LittleEndian, uint16(types.GetEntryBuffer()))
+    if err != nil {
+        return err
+    }
+    p, _ = f.Seek(0, 1)
+    fmt.Println("cur:", p)
+    fmt.Println("pNextEntry:", types.GetEntryBuffer())
 
     return nil
 }

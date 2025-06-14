@@ -7,6 +7,14 @@ import (
 )
 
 
+
+func ReadIndexFromFile(tbName, colName string) (*Node_t, error) {
+    fmt.Println("Looking for this file to read index from:", fmt.Sprintf("%s_%s.index", tbName, colName))
+    return nil, nil
+}
+
+
+
 func ReadIndex(root **Node_t, current *Node_t) (Node_t, error){
     f, err := os.Open(indexFileName)
     if err != nil {
