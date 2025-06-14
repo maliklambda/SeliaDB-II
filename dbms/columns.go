@@ -5,142 +5,109 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
+	// "reflect"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/entries"
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-func AddColumn (tb *types.Table_t, colName string, colType string, varCharLen uint32, defaultValue any) error {
+func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, isIndexed bool, defaultValue any) error {
     tp, err := types.StringToType_t(colType)
     if err != nil {
         return err
     }
+    fmt.Println("\n\n\n\ntype", tp)
     size, err := tp.GetTypeSize(varCharLen)
     if err != nil {
         return err
     }
 
     fmt.Println(tp, "size", size)
-    fmt.Println(tb.StartEntries)
     if entries.ExistsColumnName(tb, colName){
         return errors.New("Column name already exists")
     }
     newCol := types.Column_t{
         Name: colName,
         Type: tp,
-        Size: size,
+        Size: uint16(size),
+        Indexed: isIndexed,
     }
     fmt.Println("New column:", newCol)
-    insertColumnToFile(tb, &newCol)
-    if err = entries.UpdateNumOfColumns(tb.MetaData.FilePath, tb.NumOfColumns+1); err != nil {
+    err = insertColumnToFile(tb, newCol)
+    if err != nil {
+        fmt.Println("ererrrrrr\n\n\n")
+        return err
+    }
+    if err = entries.UpdateNumOfColumns(tb, tb.NumOfColumns+1); err != nil {
         return err
     }
 
-    fmt.Println("\n\nstart entries:", tb.StartEntries)
-    colSize := uint16(newCol.GetColSize())
-    fmt.Println("offset :", colSize)
-    if err = entries.UpdateStartEntries(tb.MetaData.FilePath, tb.StartEntries+colSize); err != nil {
-        return err
-    }
-    tb.StartEntries += colSize
+    // fmt.Println("\n\nstart entries:", tb.StartEntries)
+    // colSize := uint16(newCol.GetColSize())
+    // fmt.Println("offset :", colSize)
+    // if err = entries.UpdateStartEntries(tb, tb.StartEntries+uint16(types.GetTableDataBuffer())); err != nil {
+    //     return err
+    // }
 
     fmt.Println("New Start entries", tb.StartEntries)
 
-    defaultValueAsType := reflect.ValueOf(defaultValue)
-    isDefaultValue := !defaultValueAsType.IsZero()
-
-    btreeMoveSize := int(newCol.Size) // necessary because varchar might change this from newCol.Size to defaultvalue + \0
-    // check if default value is varchar -> update btreeMoveSize
-    if isDefaultValue && tp == types.VARCHAR {
-        fmt.Println("defaultvalue is varchar")
-        s, ok := defaultValue.(string)
-        if !ok {
-            return errors.New("Default value should be of type varchar but is not")
-        }
-
-       if len(s) > int(newCol.Size) {
-            return errors.New(fmt.Sprintf("Defaultvalue is too long: have %d, want %d", len(s), int(newCol.Size)))
-        }
-
-        btreeMoveSize = len(s) + 1
-    } else if tp == types.VARCHAR {
-        btreeMoveSize = 1 // write only \0
-    }
-
-    // check if default value matches with column type
-    if isDefaultValue {
-        err = entries.ValidateTypeValue(tp, int(newCol.Size), defaultValue)
-        if err != nil {
-            return err
-        }
-    }
-
-    // Move btree entries
-    // temp := int(colSize)
-    fmt.Println("\n\n\n\n\n\nReached")
-    entryList := &[]btree.Entry_t{}
-    for _, index := range tb.Indeces {
-        err = moveBtreeEntries(btree.UnsafePAnyToPNode_t(index.Root), btree.UnsafePAnyToPNode_t(index.Root), entryList, int(colSize), btreeMoveSize)
-        if err != nil {
-            return err
-        }
-    }
-
-    if isDefaultValue {       
-        // iterate over all entries, insert defaultValue for column 
-        fmt.Println(defaultValue)
-        err = insertDefaultValue(tb, newCol, defaultValue)
-        if err != nil {
-            return err
-        }
-        tb.Columns = append(tb.Columns, newCol)
-        return nil
-    }
+    // defaultValueAsType := reflect.ValueOf(defaultValue)
+    // isDefaultValue := !defaultValueAsType.IsZero()
+    //
+    // if isDefaultValue {       
+    //     // iterate over all entries, insert defaultValue for column 
+    //     fmt.Println(defaultValue)
+    //     err = insertDefaultValue(tb, newCol, defaultValue)
+    //     if err != nil {
+    //         return err
+    //     }
+    //     tb.Columns = append(tb.Columns, newCol)
+    //     return nil
+    // }
     
     // iterate over all entries, insert null for column 
-    currentPos := tb.StartEntries
-    values := [][][]byte{}
-    for range tb.Entries.NumOfEntries {
-        fmt.Println("Reading entry at", currentPos)
-        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
-        if err != nil {
-            return err
-        }
-        values = append(values, buffer)
-        currentPos += uint16(entries.GetEntryLength(buffer))
-        fmt.Println("\n\n\nAllocating", newCol.Size, "Bytes at", currentPos)
-        bytesWritten, err := appendNullValuesToFile(tb, &newCol, int64(currentPos))
-        if err != nil {
-            return err
-        }
-        currentPos += uint16(bytesWritten)
-    }
+    // currentPos := tb.StartEntries + uint16(types.GetEntryBuffer())
+    // values := [][][]byte{}
+    // for range tb.Entries.NumOfEntries {
+    //     fmt.Println("Reading entry at", currentPos)
+    //     buffer, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
+    //     if err != nil {
+    //         return err
+    //     }
+    //     values = append(values, buffer)
+    //     currentPos += uint16(entries.GetEntryLength(buffer))
+    //     fmt.Println("\n\n\nAllocating", newCol.Size, "Bytes at", currentPos)
+    //     _, err = appendNullValuesToFile(tb, &newCol, int64(currentPos))
+    //     if err != nil {
+    //         return err
+    //     }
+    //     currentPos = uint16(pNextEntry)
+    // }
     // append null values to end of file
     // This is necessary because method AllocateInFile() returns EOF for the last value
-    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
-    if err != nil {
-        return err
-    }
-    defer f.Close()
-    _, err = f.Seek(0, 2)
-    if err != nil {
-        return err
-    }
-    if newCol.Type == types.VARCHAR {
-        _, err = f.Write([]byte("\000"))
-        if err != nil {
-            return err
-        }
-    } else {
-        nullBytes := make([]byte, colSize)
-        _, err = f.Write(nullBytes)
-        if err != nil {
-            return err
-        }
-    }
-
+    // f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
+    // if err != nil {
+    //     return err
+    // }
+    // defer f.Close()
+    // _, err = f.Seek(0, 2)
+    // if err != nil {
+    //     return err
+    // }
+    // if newCol.Type == types.VARCHAR {
+    //     _, err = f.Write([]byte("\000"))
+    //     if err != nil {
+    //         return err
+    //     }
+    // } else {
+    //     nullBytes := make([]byte, colSize)
+    //     _, err = f.Write(nullBytes)
+    //     if err != nil {
+    //         return err
+    //     }
+    // }
+    //
     tb.Columns = append(tb.Columns, newCol)
     return nil
 }
@@ -165,21 +132,30 @@ func appendNullValuesToFile (tb *types.Table_t, col *types.Column_t, currentPos 
 
 
 
-func insertColumnToFile ( tb *types.Table_t, col *types.Column_t) error {
+func insertColumnToFile (tb *types.Table_t, col types.Column_t) error {
+    if col.GetColSize() >= int(tb.StartEntries) - int(tb.EndOfTableData){
+        fmt.Println("allocating more space")
+        if err := types.AllocateInFile(tb.MetaData.FilePath, int64(tb.EndOfTableData), int64(binary.Size(col))); err != nil {
+            return err
+        }
+    }
+
+    fmt.Println("writing column @", tb.EndOfTableData)
+    fmt.Println(col.GetColSize())
     f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
     defer f.Close()
-
-    if err = types.AllocateInFile(tb.MetaData.FilePath, int64(tb.StartEntries), int64(col.GetColSize())); err != nil {
+    err = entries.WriteColumnToFile(col, int64(tb.EndOfTableData), f)
+    if err != nil {
         return err
     }
-    fmt.Println(f)
 
-    if err = WriteColumnAtOffset(tb, col, int64(tb.StartEntries)); err != nil {
-        return err
-    }
+    // err = entries.UpdateEndOfTableData(tb, tb.EndOfTableData+ uint16(binary.Size(*col)))
+    // if err != nil {
+    //     return err
+    // }
 
     return nil
 }
@@ -311,7 +287,7 @@ func insertDefaultValue(tb *types.Table_t, newCol types.Column_t, defaultValue a
     values := [][][]byte{}
     for range tb.Entries.NumOfEntries {
         fmt.Println("Reading entry at", currentPos)
-        buffer, err := entries.ReadEntryFromFile(tb, int(currentPos))
+        buffer, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
             return err
         }
@@ -319,11 +295,11 @@ func insertDefaultValue(tb *types.Table_t, newCol types.Column_t, defaultValue a
         currentPos += uint16(entries.GetEntryLength(buffer))
         fmt.Println("\n\n\nWriting", insertSize, "Bytes at", currentPos)
         fmt.Println("Writing", defaultValue)
-        bytesWritten, err := writeInFile(tb, int64(currentPos), int64(insertSize), defaultValue, newCol.Type)
+        _, err = writeInFile(tb, int64(currentPos), int64(insertSize), defaultValue, newCol.Type)
         if err != nil {
             return err
         }
-        currentPos += uint16(bytesWritten)
+        currentPos = uint16(pNextEntry)
     }
 
     // write default to EOF 
@@ -433,8 +409,7 @@ func DeleteColumn (tb * types.Table_t, colName string) error {
     entries.DeleteBytesFromTo(tb.MetaData.FilePath, startOffset, startOffset+int64(len(colName)+1))
 
     // update NumOfColumns
-    tb.NumOfColumns --
-    err = entries.UpdateNumOfColumns(tb.MetaData.FilePath, tb.NumOfColumns)
+    err = entries.UpdateNumOfColumns(tb, tb.NumOfColumns-1)
     if err != nil {
         return err
     }

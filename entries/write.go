@@ -2,7 +2,6 @@ package entries
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -113,12 +112,13 @@ func WriteTableToFile (tb *types.Table_t) error {
 
 
 
-func WriteColumnToFile (col types.Column_t, offset int64, f * os.File) error{
-    if f == nil {
-        return errors.New("File must not be nil")
-    }
+func WriteColumnToFile (col types.Column_t, offset int64, f *os.File) error{
     fmt.Println("Writing this right here to file", ":", col)
-    _, err := f.Write([]byte(col.Name + "\000"))
+    _, err := f.Seek(offset, 0)
+    if err != nil {
+        return err
+    }
+    _, err = f.Write([]byte(col.Name + "\000"))
     if err != nil {
         fmt.Println("Error writing col name to file")
         return err
@@ -191,11 +191,12 @@ func AppendEntryToFileOne (tb *types.Table_t, entry []byte) error {
 
 
 
-func UpdateEndOfTableData (path string, newEndOfTableData uint16) error {
-    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+func UpdateEndOfTableData (tb *types.Table_t, newEndOfTableData uint16) error {
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
+    tb.EndOfTableData = newEndOfTableData
 
     _, err = f.Seek(int64(binary.Size(uint32(1))), 1)
     if err != nil {
@@ -247,7 +248,7 @@ func UpdateEndOfTableData (path string, newEndOfTableData uint16) error {
     if StartEntries <= newEndOfTableData {
         fmt.Println("doubling eot-buffer-length")
         StartEntries += uint16(types.GetTableDataBuffer())
-        err = types.AllocateInFile(path, int64(oldEndOfTableData), int64(types.GetTableDataBuffer()))
+        err = types.AllocateInFile(tb.MetaData.FilePath, int64(oldEndOfTableData), int64(types.GetTableDataBuffer()))
         if err != nil {
             return err
         }
@@ -268,13 +269,14 @@ func UpdateEndOfTableData (path string, newEndOfTableData uint16) error {
 
 
 
-func UpdateNumOfColumns (path string, newNumOfColumns uint32) error {
-    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+func UpdateNumOfColumns (tb *types.Table_t, newNumOfColumns uint32) error {
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
     defer f.Close()
 
+    tb.NumOfColumns = newNumOfColumns
     if err := binary.Write(f, binary.LittleEndian, newNumOfColumns); err != nil {
         return err
     }
@@ -283,8 +285,8 @@ func UpdateNumOfColumns (path string, newNumOfColumns uint32) error {
 }
 
 
-func UpdateStartEntries (path string, newStartEntries uint16) error {
-    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+func UpdateStartEntries (tb *types.Table_t, newStartEntries uint16) error {
+    f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
     }
@@ -306,6 +308,8 @@ func UpdateStartEntries (path string, newStartEntries uint16) error {
             break
         }
     }
+
+    tb.StartEntries = newStartEntries
 
     if err := binary.Write(f, binary.LittleEndian, newStartEntries); err != nil {
         return err

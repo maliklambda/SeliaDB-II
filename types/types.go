@@ -55,7 +55,7 @@ type Index_t struct {
     Root * any // * btree.Node_t
 }
 
-var tableDataBuffer int = 10
+var tableDataBuffer int = 20
 func GetTableDataBuffer () int{
     return tableDataBuffer
 }
@@ -97,11 +97,10 @@ func (t Type_t) String() string {
 }
 
 
-func StringToType_t (tb string) (Type_t, error){
-    tb = strings.TrimSpace(tb)
-    tb = strings.ToUpper(tb)
+func StringToType_t (s string) (Type_t, error){
+    s = strings.ToUpper(strings.TrimSpace(s))
     for key, val := range typeNames {
-        if val == tb {
+        if val == s {
             return key, nil
         }
     }
@@ -111,7 +110,10 @@ func StringToType_t (tb string) (Type_t, error){
 
 func (tp Type_t) GetTypeSize (varCharLen uint32) (uint16, error) {
     if tp == VARCHAR {
-        return uint16(varCharLen +1), nil
+        if varCharLen == 0 {
+            return 0, errors.New("Varchar type with length 0")
+        }
+        return uint16(varCharLen), nil
     }
     size, ok := typeSizes[tp]
     if !ok {
@@ -122,10 +124,9 @@ func (tp Type_t) GetTypeSize (varCharLen uint32) (uint16, error) {
 
 
 const (
-    MAX_DATABASE_NAME_LENGTH = 20
-    MAX_TABLE_NAME_LENGTH = 20
-    MAX_COLUMN_NAME_LENGTH = 20
-    START_ENTRIES = 1000
+    MAX_DATABASE_NAME_LENGTH = 50
+    MAX_TABLE_NAME_LENGTH = 50
+    MAX_COLUMN_NAME_LENGTH = 50
 )
 
 
@@ -170,6 +171,7 @@ func (col Column_t) GetColSize () int {
     size := len(col.Name+"\000")
     size += binary.Size(col.Type)
     size += binary.Size(col.Size)
+    size += binary.Size(col.Indexed)
     return size
 }
 

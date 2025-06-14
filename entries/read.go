@@ -102,7 +102,7 @@ func ReadColumnFromFile (f * os.File, offset int64) (types.Column_t, error) {
     }
 
     colBuffer := types.Column_t{}
-    buf, err := ReadStringFromFile(f, 10)
+    buf, err := ReadStringFromFile(f, types.MAX_COLUMN_NAME_LENGTH)
     if err != nil {
         fmt.Println("Error reading colname")
         return types.Column_t{}, err
@@ -118,7 +118,7 @@ func ReadColumnFromFile (f * os.File, offset int64) (types.Column_t, error) {
 
     err = binary.Read(f, binary.LittleEndian, &colBuffer.Size)
     if err != nil {
-        fmt.Println("Error reading coltype")
+        fmt.Println("Error reading colsize")
         fmt.Println(err)
         return types.Column_t{}, err
     }
