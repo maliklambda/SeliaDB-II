@@ -55,12 +55,12 @@ type Index_t struct {
     Root * any // * btree.Node_t
 }
 
-var tableDataBuffer int = 20
+var tableDataBuffer int = 50
 func GetTableDataBuffer () int{
     return tableDataBuffer
 }
 
-var entryBuffer int = 20
+var entryBuffer int = 50
 
 func GetEntryBuffer () int{
     return entryBuffer
@@ -88,13 +88,15 @@ var typeNames = map[Type_t] string {
 var typeSizes = map[Type_t] int {
     INT32: binary.Size(int32(0)),
     FLOAT32: binary.Size(float32(0)),
-    BOOL: binary.Size(uint8(0)),
-    NONE: binary.Size(uint8(0)),
+    BOOL: binary.Size(true),
+    NONE: binary.Size(true),
 }
 
 func (t Type_t) String() string {
     return typeNames[t]
 }
+
+var PNextEntrySize int64 = int64(binary.Size(uint16(0)))
 
 
 func StringToType_t (s string) (Type_t, error){
@@ -124,7 +126,7 @@ func (tp Type_t) GetTypeSize (varCharLen uint32) (uint16, error) {
 
 
 const (
-    MAX_DATABASE_NAME_LENGTH = 50
+    MAX_DATABASE_NAME_LENGTH = 50 // must not be longer than entry/tabledata buffers
     MAX_TABLE_NAME_LENGTH = 50
     MAX_COLUMN_NAME_LENGTH = 50
 )

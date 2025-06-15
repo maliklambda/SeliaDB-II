@@ -18,8 +18,7 @@ func ReadTableFromFile (path string) (*types.Table_t, error) {
 
     // Read table
     tb := types.Table_t{}
-    err = binary.Read(f, binary.LittleEndian, &tb.NumOfColumns)
-    if err != nil {
+    if err = binary.Read(f, binary.LittleEndian, &tb.NumOfColumns); err != nil {
         fmt.Println("Err")
         fmt.Println(err)
         return nil, err
@@ -34,19 +33,17 @@ func ReadTableFromFile (path string) (*types.Table_t, error) {
 
     curPos, _ := f.Seek(0, 1)
     fmt.Println("before reading eotd:", curPos)
-    err = binary.Read(f, binary.LittleEndian, &tb.EndOfTableData)
-    if err != nil {
+    if err = binary.Read(f, binary.LittleEndian, &tb.EndOfTableData); err != nil {
         return nil, err
     }
     fmt.Println("reading this as eotd", tb.EndOfTableData)
     curPos, _ = f.Seek(0, 1)
 
     fmt.Println("before reading start entries", curPos)
-    err = binary.Read(f, binary.LittleEndian, &tb.StartEntries)
-    if err != nil {
+    if err = binary.Read(f, binary.LittleEndian, &tb.StartEntries); err != nil {
         return nil, err
     }
-    fmt.Println("reading this as starentries", tb.StartEntries)
+    fmt.Println("reading this as start entries", tb.StartEntries)
 
     tb.Columns = make([]types.Column_t, tb.NumOfColumns)
     // read columns

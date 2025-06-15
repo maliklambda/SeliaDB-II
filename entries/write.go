@@ -100,6 +100,7 @@ func WriteTableToFile (tb *types.Table_t) error {
         return err
     }
 
+    tb.StartEntries += uint16(types.GetTableDataBuffer())
     err = binary.Write(f, binary.LittleEndian, tb.StartEntries)
     if err != nil {
         return err
@@ -215,53 +216,8 @@ func UpdateEndOfTableData (tb *types.Table_t, newEndOfTableData uint16) error {
         }
     }
 
-    _, err = f.Seek(int64(binary.Size(uint16(1))), 1)
-    if err != nil {
-        return err
-    }
-
     // now at correct pos in file
-    pos, err := f.Seek(0, 1)
-    if err != nil {
-        return err
-    }
-    var oldEndOfTableData uint16
-    err = binary.Read(f, binary.LittleEndian, &oldEndOfTableData)
-    if err != nil {
-        return err
-    }
-
-    fmt.Println(pos)
-
-    _, err = f.Seek(int64(binary.Size(uint16(1))), 1)
-    if err != nil {
-        return err
-    }
-
-    // Read StartEntries
-    var StartEntries uint16
-    err = binary.Read(f, binary.LittleEndian, &StartEntries)
-    if err != nil {
-        return err
-    }
-
-    if StartEntries <= newEndOfTableData {
-        fmt.Println("doubling eot-buffer-length")
-        StartEntries += uint16(types.GetTableDataBuffer())
-        err = types.AllocateInFile(tb.MetaData.FilePath, int64(oldEndOfTableData), int64(types.GetTableDataBuffer()))
-        if err != nil {
-            return err
-        }
-    }
-
-    // write new eot data
-    _, err = f.Seek(pos, 0)
-    if err != nil {
-        return err
-    }
-
-    err = binary.Write(f, binary.LittleEndian, newEndOfTableData)
-    if err != nil {
+    if err = binary.Write(f, binary.LittleEndian, newEndOfTableData); err != nil {
         return err
     }
     return nil
@@ -286,6 +242,7 @@ func UpdateNumOfColumns (tb *types.Table_t, newNumOfColumns uint32) error {
 
 
 func UpdateStartEntries (tb *types.Table_t, newStartEntries uint16) error {
+    fmt.Println("Updating start entries:", tb.StartEntries, "->", newStartEntries, "\n\n\n ")
     f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
         return err
@@ -311,6 +268,7 @@ func UpdateStartEntries (tb *types.Table_t, newStartEntries uint16) error {
 
     tb.StartEntries = newStartEntries
 
+    fmt.Println("writing new start entries to file:", newStartEntries, "\n\n\n ")
     if err := binary.Write(f, binary.LittleEndian, newStartEntries); err != nil {
         return err
     }
