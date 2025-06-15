@@ -183,6 +183,8 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, int64, error) 
         }
     }
 
+    pos, _ := f.Seek(0, 1)
+    fmt.Println("ended entry @", pos)
     // pNextEntry
     pNextEntry := uint8(0)
     err = binary.Read(f, binary.LittleEndian, &pNextEntry)
@@ -190,7 +192,7 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, int64, error) 
         return [][]byte{}, 0, err
     }
     
-    pos, _ := f.Seek(0, 1)
+    pos, _ = f.Seek(0, 1)
     fmt.Println("ended @", pos)
     fmt.Println("next entry @", pos+int64(pNextEntry)+int64(binary.Size(pNextEntry)))
 

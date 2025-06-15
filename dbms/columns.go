@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
+	// "reflect"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/types"
@@ -42,71 +42,62 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
         return err
     }
 
-    tb.Columns = append(tb.Columns, newCol)
+
 
     fmt.Println("New Start entries", tb.StartEntries)
-    return nil
 
+    // btreeOffsetUpdate := make(map[int]int32)
+    // append either null values or default value
+    currentPos := tb.StartEntries
+    for {
+        val, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
+        if err != nil {
+            fmt.Println("exiting\n\n ")
+            break
+        }
+        entryLength := entries.GetEntryLength(val)
+        // if int64(binary.Size(defaultValue)) >= pNextEntry {
+        //     fmt.Println("Buffer is full")
+        //     err = types.AllocateInFile(tb.MetaData.FilePath, int64(currentPos)+int64(entryLength)+int64(binary.Size(types.PNextEntrySize)), int64(types.GetEntryBuffer()))
+        //     if err != nil {
+        //         return err
+        //     }
+        //     pNextEntry += int64(types.GetEntryBuffer())
+        //     // update btree values
+        // }
 
-
-
-    defaultValueAsType := reflect.ValueOf(defaultValue)
-    isDefaultValue := !defaultValueAsType.IsZero()
-
-    if isDefaultValue {       
-        // iterate over all entries, insert defaultValue for column 
-        fmt.Println(defaultValue)
-        err = insertDefaultValue(tb, newCol, defaultValue)
+        // write defaultValue
+        f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
         if err != nil {
             return err
         }
-        tb.Columns = append(tb.Columns, newCol)
-        return nil
+        if _, err = f.Seek(int64(currentPos)+int64(entryLength), 0); err != nil {
+            return err
+        }
+
+        fmt.Println("writing defaultValue @", int(currentPos)+entryLength)
+        if _, err = f.Write([]byte(defaultValue.(string)+"\000")); err != nil {
+            return err
+        }
+
+        pos, _ := f.Seek(0, 1)
+        fmt.Println("writing pNextEntry", pNextEntry, "@", pos)
+        if err = binary.Write(f, binary.LittleEndian, uint16(42)); err != nil {
+            return err
+        }
+        f.Close()
+        // tb.Columns = append(tb.Columns, newCol) // delete this later!
+        // e, ne, _ := entries.ReadEntryFromFile(tb, int(currentPos))
+        // fmt.Println("\n\n\n\nREad this entry", e)
+        // fmt.Println("Next one @", ne)
+
+        // break
+        currentPos = uint16(pNextEntry)
     }
     
-    // iterate over all entries, insert null for column 
-    currentPos := tb.StartEntries + uint16(types.GetEntryBuffer())
-    // buffer := [][]byte{}
-    for {
-        fmt.Println("Reading entry at", currentPos)
-        buffer, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
-        if err != nil {
-            return err
-        }
-        if pNextEntry <= int64(newCol.Size) {
-            fmt.Println("\n\n\nAllocating", types.GetEntryBuffer(), "Bytes at", currentPos+uint16(binary.Size(buffer))+uint16(types.PNextEntrySize))
-        }
-        currentPos = uint16(pNextEntry)
-    //     _, err = appendNullValuesToFile(tb, &newCol, int64(currentPos))
-    //     if err != nil {
-    //         return err
-    //     }
-    //     currentPos = uint16(pNextEntry)
-    // }
-    // append null values to end of file
-    // This is necessary because method AllocateInFile() returns EOF for the last value
-    // f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
-    // if err != nil {
-    //     return err
-    // }
-    // defer f.Close()
-    // _, err = f.Seek(0, 2)
-    // if err != nil {
-    //     return err
-    // }
-    // if newCol.Type == types.VARCHAR {
-    //     _, err = f.Write([]byte("\000"))
-    //     if err != nil {
-    //         return err
-    //     }
-    // } else {
-    //     nullBytes := make([]byte, colSize)
-    //     _, err = f.Write(nullBytes)
-    //     if err != nil {
-    //         return err
-    //     }
-        break
-    }
+
+    fmt.Println("this was a success (?)\n\n ")
+
 
     tb.Columns = append(tb.Columns, newCol)
     return nil
@@ -278,46 +269,6 @@ func findIndex (arr []btree.Entry_t, key any) int {
 
 
 
-
-func insertDefaultValue(tb *types.Table_t, newCol types.Column_t, defaultValue any) error {
-    insertSize := newCol.Size
-    if newCol.Type == types.VARCHAR {
-        s, ok := defaultValue.(string)
-        if !ok {
-            return errors.New("Expected type to be varchar. defaultvalue does not match")
-        }
-        insertSize = uint16(len(s))+1
-    }
-    currentPos := tb.StartEntries
-    values := [][][]byte{}
-    for range tb.Entries.NumOfEntries {
-        fmt.Println("Reading entry at", currentPos)
-        buffer, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
-        if err != nil {
-            return err
-        }
-        values = append(values, buffer)
-        currentPos += uint16(entries.GetEntryLength(buffer))
-        fmt.Println("\n\n\nWriting", insertSize, "Bytes at", currentPos)
-        fmt.Println("Writing", defaultValue)
-        _, err = writeInFile(tb, int64(currentPos), int64(insertSize), defaultValue, newCol.Type)
-        if err != nil {
-            return err
-        }
-        currentPos = uint16(pNextEntry)
-    }
-
-    // write default to EOF 
-    err := writeToEOF(tb, defaultValue, newCol.Type)
-    if err != nil {
-        return err
-    }
-
-    return nil
-}
-
-
-
 func writeInFile(tb *types.Table_t, offset int64, numBytes int64, defaultValue any, dvType types.Type_t) (int, error){
     err := types.AllocateInFile(tb.MetaData.FilePath, offset, numBytes)
     if err != nil {
@@ -397,7 +348,6 @@ func writeToEOF (tb *types.Table_t, defaultValue any, tp types.Type_t) error {
 
 
 func DeleteColumn (tb * types.Table_t, colName string) error {
-    fmt.Println(*tb.Entries)
     // check if colName is in tb.Columns
     index, err := entries.FindColNameIndex(tb, colName)
     if err != nil {
@@ -411,7 +361,11 @@ func DeleteColumn (tb * types.Table_t, colName string) error {
     }
 
     // delete colName from file
-    entries.DeleteBytesFromTo(tb.MetaData.FilePath, startOffset, startOffset+int64(len(colName)+1))
+    if err = entries.DeleteBytesFromTo(tb.MetaData.FilePath, startOffset, startOffset+int64(len(colName)+1)); err != nil {
+        return err
+    }
+
+    // update start entries
 
     // update NumOfColumns
     err = entries.UpdateNumOfColumns(tb, tb.NumOfColumns-1)
@@ -419,12 +373,10 @@ func DeleteColumn (tb * types.Table_t, colName string) error {
         return err
     }
 
-    // update StartEntries
 
     // update btree offsets
     
     return nil
-    
 }
 
 
@@ -479,5 +431,8 @@ func findColNameInFile (tb *types.Table_t, colName string, index int64) (int64, 
         return 0, errors.New(fmt.Sprintf("Buffer (%s) and colname (%s) are expected to be the same", string(bufferCol.Name), colName))
     }
 
-    // return 0, nil
+    return 0, nil
 }
+
+
+

@@ -175,7 +175,6 @@ func AppendEntryToFileOne (tb *types.Table_t, entry []byte) error {
         fmt.Println(tb.Columns[i].Type)
         node := btree.UnsafePAnyToPNode_t(index.Root)
         InsertToBtree(&node, int32(val), uint32(pos+int64(types.GetEntryBuffer()))-uint32(tb.StartEntries), types.INT32)
-        
     }
 
     p,_ := f.Seek(0, 1)
