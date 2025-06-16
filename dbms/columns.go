@@ -35,7 +35,6 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
     }
     fmt.Println("New column:", newCol)
     if err = insertColumnToFile(tb, newCol); err != nil {
-        fmt.Println("ererrrrrr\n\n\n")
         return err
     }
     if err = entries.UpdateNumOfColumns(tb, tb.NumOfColumns+1); err != nil {
@@ -46,25 +45,50 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
 
     fmt.Println("New Start entries", tb.StartEntries)
 
+    defaulLength := len(defaultValue.(string) +"\000")
     // btreeOffsetUpdate := make(map[int]int32)
     // append either null values or default value
     currentPos := tb.StartEntries
+    var savePos int64 // needed to store info at eof
     for {
         val, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
+            fmt.Println(currentPos)
+            fmt.Println(savePos)
+            
+            f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
+            if err != nil {
+                return err
+            }
+            eof, _ := f.Seek(0, 2)
+            fmt.Println("eof:", eof)
+            if _, err = f.Seek(savePos, 0); err != nil {
+                return err
+            }
+            if err = binary.Write(f, binary.LittleEndian, (currentPos+uint16(types.GetEntryBuffer()))-uint16(savePos)-uint16(types.PNextEntrySize)); err != nil {
+                return err
+            }
+            f.Close()
             fmt.Println("exiting\n\n ")
             break
         }
         entryLength := entries.GetEntryLength(val)
-        // if int64(binary.Size(defaultValue)) >= pNextEntry {
-        //     fmt.Println("Buffer is full")
-        //     err = types.AllocateInFile(tb.MetaData.FilePath, int64(currentPos)+int64(entryLength)+int64(binary.Size(types.PNextEntrySize)), int64(types.GetEntryBuffer()))
-        //     if err != nil {
-        //         return err
-        //     }
-        //     pNextEntry += int64(types.GetEntryBuffer())
-        //     // update btree values
-        // }
+        if int(currentPos) + entryLength + defaulLength >= int(pNextEntry) {
+            fmt.Println("Buffer is full")
+            err = types.AllocateInFile(tb.MetaData.FilePath, int64(currentPos)+int64(entryLength)+int64(binary.Size(types.PNextEntrySize)), int64(types.GetEntryBuffer()))
+            if err != nil {
+                fmt.Println("\n\n\n\nerror:", err)
+                break
+            }
+            pNextEntry += int64(types.GetEntryBuffer())
+            // update btree values
+        } else {
+            fmt.Println("buffer is not full")
+            fmt.Println(currentPos)
+            fmt.Println(entryLength)
+            fmt.Println(len(defaultValue.(string))+1)
+            fmt.Println(pNextEntry)
+        }
 
         // write defaultValue
         f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
@@ -75,26 +99,39 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
             return err
         }
 
-        fmt.Println("writing defaultValue @", int(currentPos)+entryLength)
+        fmt.Println("writing defaultValue of length", defaulLength, "@", int(currentPos)+entryLength)
         if _, err = f.Write([]byte(defaultValue.(string)+"\000")); err != nil {
             return err
         }
 
         pos, _ := f.Seek(0, 1)
         fmt.Println("writing pNextEntry", pNextEntry, "@", pos)
-        if err = binary.Write(f, binary.LittleEndian, uint16(42)); err != nil {
+        if err = binary.Write(f, binary.LittleEndian, pNextEntry-pos-types.PNextEntrySize); err != nil {
             return err
         }
         f.Close()
-        // tb.Columns = append(tb.Columns, newCol) // delete this later!
         // e, ne, _ := entries.ReadEntryFromFile(tb, int(currentPos))
         // fmt.Println("\n\n\n\nREad this entry", e)
         // fmt.Println("Next one @", ne)
 
-        // break
+        savePos = int64(currentPos) + int64(entries.GetEntryLength(val)) + int64(defaulLength)
         currentPos = uint16(pNextEntry)
     }
     
+    // write pointer to next (not yet existing entr)
+    fmt.Println("\n\n\nended on currentPos", currentPos)
+        f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
+        if err != nil {
+            return err
+        }
+        if _, err := f.Seek(int64(currentPos-uint16(types.PNextEntrySize)), 0); err != nil {
+            return err
+        }
+        // if err = binary.Write(f, binary.LittleEndian, uint16(types.GetEntryBuffer())); err != nil {
+        if err = binary.Write(f, binary.LittleEndian, uint16(600)); err != nil {
+            return err
+        }
+        f.Close()
 
     fmt.Println("this was a success (?)\n\n ")
 
@@ -431,7 +468,7 @@ func findColNameInFile (tb *types.Table_t, colName string, index int64) (int64, 
         return 0, errors.New(fmt.Sprintf("Buffer (%s) and colname (%s) are expected to be the same", string(bufferCol.Name), colName))
     }
 
-    return 0, nil
+    // return 0, nil
 }
 
 

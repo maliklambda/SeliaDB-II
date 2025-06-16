@@ -35,7 +35,7 @@ func IterateOverEntriesInFile (tb *types.Table_t, limit uint16) ([][][]byte, []i
         fmt.Println("Reading entry at", currentPos)
         buffer, pNextEntry, err := entries.ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
-            return [][][]byte{}, []int{}, err
+            break
         }
         fmt.Println("Next entry:", pNextEntry)
         values = append(values, buffer)
