@@ -40,11 +40,15 @@ func DeleteBytesFromTo (path string, from, to int64) error {
     }
     defer f.Close()
 
-    tmp, err := os.CreateTemp("", "tmp-" + path)
+    tmp, err := os.OpenFile(path+"_tmp", os.O_RDWR|os.O_CREATE, 0644)
     if err != nil {
+        fmt.Println("Hey, that file already exists.")
         return err
     }
     defer tmp.Close()
+    if err = tmp.Truncate(0); err != nil {
+        return err
+    }
 
     _, err = io.CopyN(tmp, f, from)
     if err != nil {
@@ -63,6 +67,7 @@ func DeleteBytesFromTo (path string, from, to int64) error {
 
     fmt.Println(tmp)
     tmp.Close()
+
     f.Close()
 
     err = os.Rename(tmp.Name(), path)

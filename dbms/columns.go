@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
+
 	// "reflect"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
-	"github.com/MalikL2005/SeliaDB-II/types"
 	"github.com/MalikL2005/SeliaDB-II/entries"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, isIndexed bool, defaultValue any) error {
@@ -391,18 +393,76 @@ func DeleteColumn (tb * types.Table_t, colName string) error {
         return err
     }
 
-    // find colName in file
-    startOffset, err := findColNameInFile (tb, colName, int64(index))
+    if tb.NumOfColumns == 1 {
+        fmt.Println("Just delete everything brooooo")
+        return errors.New("Num of cols is just one")
+    }
+
+    // read all columns up to index
+    f, err := os.Open(tb.MetaData.FilePath)
+    if err != nil {
+        fmt.Println("errored here")
+        return err
+    }
+    defer f.Close()
+
+    // Read table
+    curPos, err := f.Seek(int64(binary.Size(tb.NumOfColumns)+len(tb.Name+"\000")+binary.Size(tb.EndOfTableData)+binary.Size(tb.StartEntries)), 0)
     if err != nil {
         return err
     }
+    fmt.Println("starting columns @", curPos)
 
+    // read columns
+    var colBuffer types.Column_t
+    nextOffset := curPos
+    for range index +1 {
+        colBuffer, err = entries.ReadColumnFromFile(f, nextOffset)
+        if err != nil {
+            return err
+        }
+        nextOffset += int64(colBuffer.GetColSize())
+    }
+    fmt.Println(colBuffer.GetColSize())
+    fmt.Println(colBuffer)
+    colLength := int64(colBuffer.GetColSize())
+
+    fmt.Println("startOffset", nextOffset)
+    fmt.Println("colLength", colLength)
+    f.Close()
     // delete colName from file
-    if err = entries.DeleteBytesFromTo(tb.MetaData.FilePath, startOffset, startOffset+int64(len(colName)+1)); err != nil {
+    if err = entries.DeleteBytesFromTo(tb.MetaData.FilePath, int64(nextOffset-colLength), int64(nextOffset)); err != nil {
         return err
     }
 
-    // update start entries
+    // delete entries for deleted column from file
+    // todo: delete multiple columns
+    var val [][]byte
+    var pNextEntry int64
+    curOffset := int64(tb.StartEntries) - colLength
+    for {
+        val, pNextEntry, err = entries.ReadEntryFromFile(tb, int(curOffset))
+        if err != nil {
+            break
+        }
+        if err = entries.DeleteBytesFromTo(tb.MetaData.FilePath, int64(curOffset)+int64(entries.GetEntryLength(val[0:index])), int64(curOffset)+int64(entries.GetEntryLength(val[0:index+1]))); err != nil{
+            return err
+        }
+        deletedBytes := int64(entries.GetEntryLength(val[0:index+1])) - int64(entries.GetEntryLength(val[0:index]))
+        curOffset = pNextEntry - deletedBytes
+        fmt.Println("here:", curOffset)
+    }
+
+
+    // update EndOfTableData
+    if err = entries.UpdateEndOfTableData(tb, tb.EndOfTableData-uint16(colLength)); err != nil {
+        return err
+    }
+
+    //update start entries
+    if err = entries.UpdateStartEntries(tb, tb.StartEntries-uint16(colLength)); err != nil {
+        return err
+    }
 
     // update NumOfColumns
     err = entries.UpdateNumOfColumns(tb, tb.NumOfColumns-1)
@@ -410,9 +470,8 @@ func DeleteColumn (tb * types.Table_t, colName string) error {
         return err
     }
 
+    tb.Columns = slices.Concat(tb.Columns[:index], tb.Columns[index+1:])
 
-    // update btree offsets
-    
     return nil
 }
 
