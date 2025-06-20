@@ -64,6 +64,7 @@ func ReadTableFromFile (path string) (*types.Table_t, error) {
             }
         }
     }
+    tb.MetaData.FilePath = path
     return &tb, nil
 }
 

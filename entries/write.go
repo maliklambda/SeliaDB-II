@@ -264,6 +264,10 @@ func UpdateStartEntries (tb *types.Table_t, newStartEntries uint16) error {
             break
         }
     }
+    
+    if _, err = f.Seek(int64(binary.Size(tb.EndOfTableData)), 1); err != nil {
+        return err
+    }
 
     tb.StartEntries = newStartEntries
 

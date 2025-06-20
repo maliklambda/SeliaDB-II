@@ -28,7 +28,7 @@ func IterateOverEntriesInFile (tb *types.Table_t, limit uint16) ([][][]byte, []i
     maxLengths := make([]int, len(tb.Columns))
     var currentPos uint32 = uint32(tb.StartEntries)
     values := [][][]byte{}
-    for range tb.Entries.NumOfEntries {
+    for {
         if uint16(len(values)) >= limit {
             break
         }

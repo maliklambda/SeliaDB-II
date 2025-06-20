@@ -47,7 +47,16 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
 
     fmt.Println("New Start entries", tb.StartEntries)
 
-    defaulLength := len(defaultValue.(string) +"\000")
+    var defaulLength int
+    switch tp {
+    case types.VARCHAR: 
+        defaulLength = len(defaultValue.(string) +"\000")
+    case types.INT32, types.FLOAT32:
+        defaulLength = binary.Size(int32(1))
+    case types.BOOL:
+        defaulLength = binary.Size(true)
+    default: return errors.New("invalid type")
+    }
     // btreeOffsetUpdate := make(map[int]int32)
     // append either null values or default value
     currentPos := tb.StartEntries

@@ -114,12 +114,12 @@ func ReadEntryIndex (tb *types.Table_t, index int) ([][]byte, error) {
 func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, int64, error) {
     fmt.Println("Reading entry")
     fmt.Println("starting at", offset)
-    if tb.Entries == nil {
-        return [][]byte{}, 0, errors.New("Entries cannot be Nil")
-    }
-    if tb.Entries.Values == nil {
-        return [][]byte{}, 0, errors.New("Entries->Values cannot be nil")
-    }
+    // if tb.Entries == nil {
+    //     return [][]byte{}, 0, errors.New("Entries cannot be Nil")
+    // }
+    // if tb.Entries.Values == nil {
+    //     return [][]byte{}, 0, errors.New("Entries->Values cannot be nil")
+    // }
 
     f, err := os.Open(tb.MetaData.FilePath)
     if err != nil {
@@ -197,8 +197,6 @@ func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, int64, error) 
     fmt.Println("next entry @", pos+int64(pNextEntry)+int64(binary.Size(pNextEntry)))
 
     return values, int64(pos+int64(pNextEntry)+int64(binary.Size(pNextEntry))), nil
-
-
 }
 
 
