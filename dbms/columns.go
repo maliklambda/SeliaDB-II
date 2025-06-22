@@ -7,7 +7,6 @@ import (
 	"os"
 	"slices"
 
-	// "reflect"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/entries"
@@ -48,15 +47,36 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
     fmt.Println("New Start entries", tb.StartEntries)
 
     var defaulLength int
+    var defaultValueBt []byte
     switch tp {
-    case types.VARCHAR: 
-        defaulLength = len(defaultValue.(string) +"\000")
+    case types.VARCHAR:
+        default_string, ok := defaultValue.(string)
+        if !ok {
+            return errors.New("Expected defaultValue to be of type VARCHAR.")
+        }
+        defaulLength = len(default_string + "\000")
+        defaultValueBt = []byte(default_string+"\000")
+
     case types.INT32, types.FLOAT32:
+        default_int32, ok := defaultValue.(int32)
+        if !ok {
+            return errors.New("Expected defaultValue to be of type INT32.")
+        }
         defaulLength = binary.Size(int32(1))
+        defaultValueBt = make([]byte, defaulLength)
+        binary.LittleEndian.PutUint32(defaultValueBt, uint32(default_int32))
+
     case types.BOOL:
         defaulLength = binary.Size(true)
+
     default: return errors.New("invalid type")
     }
+
+    fmt.Println("Default infos:")
+    fmt.Println("defaultvalue:", defaultValueBt)
+    fmt.Println("default length:", defaulLength)
+    fmt.Println("type:", tb)
+
     // btreeOffsetUpdate := make(map[int]int32)
     // append either null values or default value
     currentPos := tb.StartEntries
@@ -97,7 +117,6 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
             fmt.Println("buffer is not full")
             fmt.Println(currentPos)
             fmt.Println(entryLength)
-            fmt.Println(len(defaultValue.(string))+1)
             fmt.Println(pNextEntry)
         }
 
@@ -111,7 +130,7 @@ func AddColumn (tb *types.Table_t, colName, colType string, varCharLen uint32, i
         }
 
         fmt.Println("writing defaultValue of length", defaulLength, "@", int(currentPos)+entryLength)
-        if _, err = f.Write([]byte(defaultValue.(string)+"\000")); err != nil {
+        if _, err = f.Write(defaultValueBt); err != nil {
             return err
         }
 
@@ -197,8 +216,10 @@ func insertColumnToFile (tb *types.Table_t, col types.Column_t) error {
     if err = entries.WriteColumnToFile(col, int64(tb.EndOfTableData), f); err != nil {
         return err
     }
+    f.Close()
 
-    if err = entries.UpdateEndOfTableData(tb, tb.EndOfTableData+ uint16(binary.Size(col))); err != nil {
+    fmt.Println("hereree", tb.EndOfTableData+ uint16(binary.Size(col)))
+    if err = entries.UpdateEndOfTableData(tb, tb.EndOfTableData+ uint16(col.GetColSize())); err != nil {
         return err
     }
     return nil

@@ -196,7 +196,6 @@ func UpdateEndOfTableData (tb *types.Table_t, newEndOfTableData uint16) error {
     if err != nil {
         return err
     }
-    tb.EndOfTableData = newEndOfTableData
 
     _, err = f.Seek(int64(binary.Size(uint32(1))), 1)
     if err != nil {
@@ -216,9 +215,11 @@ func UpdateEndOfTableData (tb *types.Table_t, newEndOfTableData uint16) error {
     }
 
     // now at correct pos in file
+    fmt.Println("updating EndOfTableData:", newEndOfTableData)
     if err = binary.Write(f, binary.LittleEndian, newEndOfTableData); err != nil {
         return err
     }
+    tb.EndOfTableData = newEndOfTableData
     return nil
 }
 

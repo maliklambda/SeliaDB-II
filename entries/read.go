@@ -106,6 +106,7 @@ func ReadColumnFromFile (f * os.File, offset int64) (types.Column_t, error) {
         return types.Column_t{}, err
     }
     colBuffer.Name = string(buf)
+    fmt.Println("read this colname", colBuffer.Name)
 
     err = binary.Read(f, binary.LittleEndian, &colBuffer.Type)
     if err != nil {
