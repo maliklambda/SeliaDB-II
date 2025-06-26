@@ -18,10 +18,11 @@ func CommandWrapper (fullQuery string, db *types.Database_t) error {
         if query == "" {
             break
         }
-        err := ParseQuery(query, db)
+        numAffectedRows, err := ParseQuery(query, db)
         if err != nil {
             return err
         }
+        fmt.Println("-- Affected Rows:", numAffectedRows)
     }
     return nil
 }

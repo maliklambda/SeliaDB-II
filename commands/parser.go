@@ -12,34 +12,36 @@ import (
 )
 
 
-func ParseQuery (query string, db *types.Database_t) (error) {
+func ParseQuery (query string, db *types.Database_t) (numAffectedColumns uint, err error) {
     fmt.Println("parsing:", query)
     query = prepareQuery(query)
     if query == "" {
-        return errors.New("Received empty query")
+        return 0,errors.New("Received empty query")
     }
     commandIndex := strings.Index(query, parser.SPACE)
     if commandIndex < 0 {
-        return errors.New("invalid query")
+        return 0, errors.New("invalid query")
     }
     command := GetCommandKeyWord(query[:commandIndex])
     switch command {
     case SELECT:
-        _, err := process.SELECT(query[commandIndex:], db)
+        _, err = process.SELECT(query[commandIndex:], db)
         if err != nil {
-            return err
+            return 0, err
         }
+        numAffectedColumns = 0
     case INSERT:
         err := process.INSERT(query[commandIndex:], db)
         if err != nil {
-            return err
+            return 0, err
         }
+        numAffectedColumns = 1
     case DELETE:
     case UPDATE:
-    case NONE: return errors.New(fmt.Sprintf("Unknown command \"%s\". Type help or \\h for more infos.", query))
+    case NONE: return 0, errors.New(fmt.Sprintf("Unknown command \"%s\". Type help or \\h for more infos.", query))
     }
 
-    return nil
+    return numAffectedColumns, nil
 }
 
 
