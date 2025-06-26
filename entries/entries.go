@@ -111,6 +111,7 @@ func ReadEntryIndex (tb *types.Table_t, index int) ([][]byte, error) {
 
 
 
+// returns val ([][]byte), offset to next entry (absolute to file_start)
 func ReadEntryFromFile (tb *types.Table_t, offset int) ([][]byte, int64, error) {
     fmt.Println("Reading entry")
     fmt.Println("starting at", offset)

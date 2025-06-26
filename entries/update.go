@@ -1,13 +1,14 @@
 package entries
 
 import (
-"encoding/binary"
-"errors"
-"fmt"
-"os"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
 
-"github.com/MalikL2005/SeliaDB-II/btree"
-"github.com/MalikL2005/SeliaDB-II/types"
+	"github.com/MalikL2005/SeliaDB-II/btree"
+	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
 
@@ -23,6 +24,23 @@ func UpdateEntriesWhere (tb *types.Table_t, cmpObj types.CompareObj, colName str
     colIndex, err := StringToColumnIndex(tb, colName)
     if err != nil {
         return err
+    }
+
+    cmpColIndex, err := StringToColumnIndex(tb, cmpObj.ColName)
+    if err != nil {
+        return err
+    }
+
+    currentCol := tb.Columns[cmpColIndex]
+    switch cmpObj.CmpOperator {
+    case types.STARTS_WITH:
+        if currentCol.Type != types.VARCHAR {
+            return errors.New(fmt.Sprintf("Can use function 'STARTS_WITH' only with VARCHAR type, not with %s (type of column '%s')", currentCol.Type.String(), currentCol.Name))
+        }
+    case types.ENDS_WITH:
+        if currentCol.Type != types.VARCHAR {
+            return errors.New(fmt.Sprintf("Can use function 'ENDS_WITH' only with VARCHAR type, not with %s (type of column '%s')", currentCol.Type.String(), currentCol.Name))
+        }
     }
 
     err = iterateOverEntriesUpdate(tb, cmpObj, colIndex, newValue)
@@ -49,16 +67,28 @@ func iterateOverEntriesUpdate (tb *types.Table_t, cmp types.CompareObj, colIndex
     newOffsetsBtree := types.UpdateOffsetList{}
     newOffsetsBtree.UpdateDict = make(map[int]int32)
     var numNewBytes int32
-    for range tb.Entries.NumOfEntries {
-        entry, _, err := ReadEntryFromFile(tb, int(curOffset))
+    for {
+        entry, pNextEntry, err := ReadEntryFromFile(tb, int(curOffset))
         if err != nil {
-            return err
+            break
         }
         fmt.Println("Comparing", entry, "and", cmp.Value)
         // check if entry matches condition
-        compareResult, err := types.CompareValues(tb.Columns[cmpColIndex].Type, entry[cmpColIndex], cmp.Value)
-        if err != nil {
-            return err
+        var compareResult int
+        switch cmp.CmpOperator {
+        case types.STARTS_WITH:
+            fmt.Println("comparing:", string(entry[cmpColIndex][:len(cmp.Value.(string))]), "and", cmp.Value.(string))
+            compareResult = strings.Compare(string(entry[cmpColIndex][:len(cmp.Value.(string))]), cmp.Value.(string))
+            fmt.Println("result:", compareResult)
+        case types.ENDS_WITH:
+            fmt.Printf("comparing: '%s' and '%s'\n", string(entry[cmpColIndex][len(entry[cmpColIndex])-len(cmp.Value.(string))-1:]), cmp.Value.(string))
+            compareResult = strings.Compare(string(entry[cmpColIndex][len(entry[cmpColIndex])-len(cmp.Value.(string))-1:]), cmp.Value.(string))
+            fmt.Println("result:", compareResult)
+        default:
+            compareResult, err = types.CompareValues(tb.Columns[cmpColIndex].Type, entry[cmpColIndex], cmp.Value)
+            if err != nil {
+                return err
+            }
         }
         fmt.Println("Return result:", compareResult)
         if types.CompareValuesWithOperator(compareResult, cmp.CmpOperator) {
@@ -79,7 +109,8 @@ func iterateOverEntriesUpdate (tb *types.Table_t, cmp types.CompareObj, colIndex
                 newOffsetsBtree.Current += numNewBytes
             }
         }
-        curOffset += uint16(GetEntryLength(entry)) + uint16(numNewBytes)
+        // curOffset += uint16(GetEntryLength(entry)) + uint16(numNewBytes)
+        curOffset = uint16(pNextEntry)
     }
     fmt.Println(newOffsetsBtree)
     if len(newOffsetsBtree.UpdateDict) > 0 {

@@ -186,6 +186,8 @@ const (
     EQUAL
     SMALLER_EQUAL
     GREATER_EQUAL
+    STARTS_WITH
+    ENDS_WITH
 )
 
 var CompareStrings = map[string]CompareOperator{
@@ -226,6 +228,8 @@ func CompareValuesWithOperator (compareResult int, cmpOperator CompareOperator) 
         case SMALLER: return compareResult == -1
         case SMALLER_EQUAL: return (compareResult == -1) || (compareResult == 0)
         case GREATER_EQUAL: return (compareResult == 1) || (compareResult == 0)
+        case STARTS_WITH: return compareResult == 0
+        case ENDS_WITH: return compareResult == 0
     }
     return false
 }
