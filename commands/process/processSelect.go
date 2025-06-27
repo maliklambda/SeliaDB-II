@@ -12,14 +12,14 @@ import (
 )
 
 func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) {
-    sourceTb, selectedCols, joinTables, conditions, err := parser.ParseSelect(query, db)
+    sourceTb, selectedCols, joinTables, conditions, limit, err := parser.ParseSelect(query, db)
     if err != nil {
         return [][][]byte{}, err
     }
 
     fmt.Println("received", sourceTb, "as table")
 
-    values, currentTb, maxLenghts, err := processSelectQuery(db, sourceTb, selectedCols, joinTables, conditions)
+    values, currentTb, maxLenghts, err := processSelectQuery(db, sourceTb, selectedCols, joinTables, conditions, limit)
     if err != nil {
         return [][][]byte{}, err
     }
@@ -33,7 +33,8 @@ func processSelectQuery (
     sourceTable string, 
     selectedColumns []string,
     joinTables types.Join_t, 
-    conditions []types.CompareObj) (values [][][]byte, sourceTb *types.Table_t, maxLenghts []int, err error){
+    conditions []types.CompareObj,
+    limit uint64) (values [][][]byte, sourceTb *types.Table_t, maxLenghts []int, err error){
 
     fmt.Println("\n\n\nhere:", sourceTable)
     tbIndex, err := getTableIndex(db, sourceTable)
@@ -58,7 +59,7 @@ func processSelectQuery (
     fmt.Println(currentTb)
     fmt.Println()
     
-    values, maxLenghts, err = search.IterateOverEntriesInFile(currentTb, 10000)
+    values, maxLenghts, err = search.IterateOverEntriesInFile(currentTb, limit)
     if err != nil {
         return [][][]byte{}, nil, []int{}, err
     }
