@@ -88,10 +88,10 @@ func InnerJoinIndexed (left, right * types.Table_t, leftCol, rightCol string) (v
 
 
         // remove join column from left
-        rightValues, err := entries.ReadEntryFromFile(right, int(entry.Value))
+        rightValues, _, err := entries.ReadEntryFromFile(right, int(entry.Value))
         new_vals := append(slices.Delete(buffer, leftIndex, leftIndex +1), rightValues...)
         // update longest display value
-        maxLengths = types.UpdateLongestDisplay(maxLengths, new_vals, newTb)
+        maxLengths = types.UpdateLongestDisplay(maxLengths, new_vals, newTb.Columns)
         fmt.Println(maxLengths)
         values = append(values, new_vals)
     }

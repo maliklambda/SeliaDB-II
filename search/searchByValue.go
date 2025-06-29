@@ -23,9 +23,10 @@ func IterateOverEntries(tb *types.Table_t){
 
 
 
-func IterateOverEntriesInFile (tb *types.Table_t, limit uint64) ([][][]byte, []int, error) {
+func IterateOverEntriesInFile (tb *types.Table_t, selectedColumnsIndeces []int, limit uint64) ([][][]byte, []int, error) {
     fmt.Println("Iterating over entries on file!!!!!!")
     maxLengths := make([]int, len(tb.Columns))
+    cols := FilterColumns(tb.Columns, selectedColumnsIndeces)
     var currentPos uint32 = uint32(tb.StartEntries)
     values := [][][]byte{}
     for {
@@ -37,9 +38,12 @@ func IterateOverEntriesInFile (tb *types.Table_t, limit uint64) ([][][]byte, []i
         if err != nil {
             break
         }
+        if len(selectedColumnsIndeces) > 0 {
+            buffer = filterBufferByColumnIndices(buffer, selectedColumnsIndeces)
+        }
         fmt.Println("Next entry:", pNextEntry)
         values = append(values, buffer)
-        maxLengths = types.UpdateLongestDisplay(maxLengths, buffer, tb)
+        maxLengths = types.UpdateLongestDisplay(maxLengths, buffer, cols)
         currentPos = uint32(pNextEntry)
     }
     fmt.Println("Here")
@@ -80,12 +84,12 @@ func FindEntryByKey (tb *types.Table_t, colName string, value any) ([][]byte, er
 
 
 
-func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types.CompareObj) ([][][]byte, error){
+func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types.CompareObj) ([][][]byte, []int, error){
     indices := make([]int, len(cmpObjs))
     for i, cmp := range cmpObjs {
         index, err := entries.StringToColumnIndex(tb, cmp.ColName)
         if err != nil {
-            return [][][]byte{}, err
+            return [][][]byte{}, []int{}, err
         }
         fmt.Println(tb.Columns[index])
         indices[i] = index
@@ -95,12 +99,13 @@ func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types
         limit = 1
     }
     
+    maxLengths := make([]int, 0)
     returnValues := make([][][]byte, 0)
     cur := tb.StartEntries
     for range tb.Entries.NumOfEntries {
         entry, _, err := entries.ReadEntryFromFile(tb, int(cur))
         if err != nil {
-            return [][][]byte{}, err
+            return [][][]byte{}, []int{}, err
         }
         cur += uint16(entries.GetEntryLength(entry))
         for i, cmp := range cmpObjs {
@@ -108,7 +113,7 @@ func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types
             // check if entry matches condition
             compareResult, err := types.CompareValues(tb.Columns[indices[i]].Type, entry[indices[i]], cmp.Value)
             if err != nil {
-                return [][][]byte{}, err
+                return [][][]byte{}, []int{}, err
             }
             if !types.CompareValuesWithOperator(compareResult, cmp.CmpOperator) {
                 break
@@ -116,14 +121,34 @@ func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types
             if i == len(cmpObjs) -1 {
                 returnValues = append(returnValues, entry)
             }
+            maxLengths = types.UpdateLongestDisplay(maxLengths, entry, tb.Columns)
         }
         // if limit is exceeded, break out
         if len(returnValues) >= int(limit) {
-            return returnValues, nil
+            return returnValues, []int{}, nil
         }
     }
-    return returnValues, nil
+    return returnValues, maxLengths, nil
 }
 
 
 
+func filterBufferByColumnIndices(buffer [][]byte, selectedColumnsIndeces[]int) [][]byte {
+    newBuf := make([][]byte, 0)
+    for _, index := range selectedColumnsIndeces {
+        newBuf = append(newBuf, buffer[index])
+    }
+    return newBuf
+}
+
+
+
+func FilterColumns (cols []types.Column_t, selectedColumnsIndeces[]int) []types.Column_t {
+    fmt.Println(cols)
+    fmt.Println(selectedColumnsIndeces)
+    newCols := make([]types.Column_t, 0)
+    for _, index := range selectedColumnsIndeces {
+        newCols = append(newCols, cols[index])
+    }
+    return newCols
+}

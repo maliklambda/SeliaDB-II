@@ -36,8 +36,8 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
     fmt.Println("Found index:", i)
 
     if curIndex < 0 {
-        fmt.Println("We are done here -> select * from x;")
-        return sourceTable, selectedColumns, types.Join_t{}, []types.CompareObj{}, 0, nil
+        fmt.Println("We are done here -> select ... from x;")
+        return sourceTable, searchedColumns, types.Join_t{}, []types.CompareObj{}, 0, nil
     }
 
     // join tables
@@ -76,11 +76,7 @@ func findSearchedColumns (query string) (searchedColumns []string, curIndex int,
     if curIndex < 0 {
         return []string{}, -1, errors.New("No \"FROM \" found.")
     }
-    searchedColumnsString := query[:curIndex]
-    if len(searchedColumnsString) == 0 {
-        return []string{}, -1, errors.New("Must specify columns")
-    }
-    return strings.Split(strings.ReplaceAll(searchedColumnsString, SPACE, ""), ","), curIndex, nil
+    return strings.Split(strings.ReplaceAll(query[:curIndex], SPACE, ""), ","), curIndex, nil
 }
 
 

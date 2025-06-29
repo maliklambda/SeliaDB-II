@@ -6,21 +6,23 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
 )
 
-func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
+func DisplayByteSlice (bytes [][][]byte, cols []Column_t, maxLengths []int) {
+    fmt.Println(cols)
     if len (bytes) == 0 {
         fmt.Println("Empty set")
         return 
     }
     rowSeparator := "+"
-    for i, col := range tb.Columns {
+    for i, col := range cols {
         maxLengths[i] = max(len(col.Name), maxLengths[i])
         rowSeparator += strings.Repeat("-", maxLengths[i]+2) + "+"
     }
     rowSeparator += "\n"
     fmt.Print(rowSeparator)
-    for i, col := range tb.Columns {
+    for i, col := range cols {
         fmt.Print("| ")
         spaces := strings.Repeat(" ", maxLengths[i]-len(col.Name)+1)
         fmt.Print(col.Name, spaces)
@@ -30,13 +32,13 @@ func DisplayByteSlice (bytes [][][]byte, tb *Table_t, maxLengths []int) {
     for _, entry := range bytes {
         for i, value := range entry {
             fmt.Print("|")
-            v, err := ByteSliceToValue(value, tb.Columns[i].Type)
+            v, err := ByteSliceToValue(value, cols[i].Type)
             if err != nil {
                 fmt.Print(strings.Repeat(" ", maxLengths[i]))
                 continue
             }
             fmt.Print(" ", v)
-            fmt.Print(strings.Repeat(" ", (maxLengths[i] - GetDisplayLength(v, tb.Columns[i].Type))+1))
+            fmt.Print(strings.Repeat(" ", (maxLengths[i] - GetDisplayLength(v, cols[i].Type))+1))
         }
         fmt.Println("|")
     }
@@ -70,9 +72,9 @@ func GetDisplayLength (v any, tp Type_t) int {
 
 
 
-func UpdateLongestDisplay (maxLengths []int, bytes [][]byte, tb *Table_t) []int {
+func UpdateLongestDisplay (maxLengths []int, bytes [][]byte, cols []Column_t) []int {
     var length int
-    for i, col := range tb.Columns {
+    for i, col := range cols {
         length = GetDisplayLengthByte(bytes[i], col.Type)
         if length > maxLengths[i] {
             maxLengths[i] = length

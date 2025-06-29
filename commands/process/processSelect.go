@@ -19,12 +19,15 @@ func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) 
 
     fmt.Println("received", sourceTb, "as table")
 
-    values, currentTb, maxLenghts, err := processSelectQuery(db, sourceTb, selectedCols, joinTables, conditions, limit)
+    values, currentTb, maxLenghts, colIndices, err := processSelectQuery(db, sourceTb, selectedCols, joinTables, conditions, limit)
     if err != nil {
         return [][][]byte{}, err
     }
 
-    types.DisplayByteSlice(values, currentTb, maxLenghts)
+    newCols := search.FilterColumns(currentTb.Columns, colIndices)
+    fmt.Println(newCols)
+    fmt.Println(colIndices)
+    types.DisplayByteSlice(values, newCols, maxLenghts)
     return [][][]byte{}, err
 }
 
@@ -34,37 +37,57 @@ func processSelectQuery (
     selectedColumns []string,
     joinTables types.Join_t, 
     conditions []types.CompareObj,
-    limit uint64) (values [][][]byte, sourceTb *types.Table_t, maxLenghts []int, err error){
+    limit uint64) (values [][][]byte, sourceTb *types.Table_t, maxLenghts, colIndices []int, err error){
 
     fmt.Println("\n\n\nhere:", sourceTable)
     tbIndex, err := getTableIndex(db, sourceTable)
     if err != nil {
-        return [][][]byte{}, nil, []int{}, err
+        return [][][]byte{}, nil, []int{}, []int{}, err
     }
 
     currentTb := db.Tables[tbIndex]
-    // indices, err := getColumnIndeces(currentTb, selectedColumns)
-    // if err != nil {
-    //     return [][][]byte{}, err
-    // }
+    colIndices, err = getColumnIndeces(currentTb, selectedColumns)
+    if err != nil {
+        return [][][]byte{}, nil, []int{}, []int{}, err
+    }
+    // cols := filterColumns(currentTb.Columns, colIndices)
 
     if len(joinTables) > 0 {
-        return [][][]byte{}, nil, []int{}, errors.New("Join is not implemented yet")
+        return [][][]byte{}, nil, []int{}, []int{}, errors.New("Join is not implemented yet")
     }
 
-    if len(conditions) > 0 {
-        return [][][]byte{}, nil, []int{}, errors.New("Condition is not implemented yet")
+    if len(conditions) == 1 {
+        fmt.Println("checking if this col is indexed:", conditions[0].ColName)
+        if isIndexed, err := IsColIndexed(currentTb, conditions[0].ColName); err != nil {
+            return [][][]byte{}, nil, []int{}, []int{}, err
+        } else if isIndexed {
+            return [][][]byte{}, nil, []int{}, []int{}, errors.New("Searching by indexed column is not yet implemented")
+        }
+        vals, maxLenghts, err := search.FindEntryWhereCondition(currentTb, uint16(limit))
+        if err != nil {
+            return [][][]byte{}, nil, []int{}, []int{}, err
+        }
+        return vals, currentTb, maxLenghts, []int{}, nil
+    }
+
+    if len(conditions) > 1 {
+        return [][][]byte{}, nil, []int{}, []int{}, errors.New("Multiple conditions is not implemented yet")
     }
     fmt.Println("\n\n\nvalues:")
     fmt.Println(currentTb)
     fmt.Println()
-    
-    values, maxLenghts, err = search.IterateOverEntriesInFile(currentTb, limit)
-    if err != nil {
-        return [][][]byte{}, nil, []int{}, err
+    if limit <= 0 {
+        limit = 10000
     }
 
-    return values, currentTb, maxLenghts, nil
+    fmt.Println(colIndices)
+    
+    values, maxLenghts, err = search.IterateOverEntriesInFile(currentTb, colIndices, limit)
+    if err != nil {
+        return [][][]byte{}, nil, []int{}, []int{}, err
+    }
+
+    return values, currentTb, maxLenghts, colIndices, nil
 }
 
 
@@ -86,11 +109,13 @@ func getColumnIndeces (tb *types.Table_t, selectedColumns []string) ([]int, erro
         colNames[i] = col.Name
     }
 
-    foundColumns := make([]int, len(tb.Columns))
+    foundColumns := make([]int, 0)
     unknownColumns := make([]string, 0)
     for i, newName := range selectedColumns {
         if slices.Contains(colNames, newName){
-            foundColumns[i] = slices.Index(colNames, newName)
+            fmt.Println(newName)
+            fmt.Println(i)
+            foundColumns = append(foundColumns, slices.Index(colNames, newName))
         } else {
             unknownColumns = append(unknownColumns, newName)
         }
@@ -99,7 +124,22 @@ func getColumnIndeces (tb *types.Table_t, selectedColumns []string) ([]int, erro
     if len(unknownColumns) > 0 {
         return []int{}, errors.New(fmt.Sprintf("Column(s) %s do not exist", strings.Join(unknownColumns[:], "")))
     }
+    fmt.Println(foundColumns)
     return foundColumns, nil
+}
+
+
+
+func IsColIndexed (tb * types.Table_t, colName string) (bool, error) {
+    colNames := make([]string, len(tb.Columns))
+    for i, col := range tb.Columns {
+        colNames[i] = col.Name
+    }
+    if iCol := slices.Index(colNames, colName); iCol == -1 {
+        return false, errors.New(fmt.Sprintf("Column %s does not exist in table %s.", colName, tb.Name))
+    } else {
+        return tb.Columns[iCol].Indexed, nil
+    }
 }
 
 
