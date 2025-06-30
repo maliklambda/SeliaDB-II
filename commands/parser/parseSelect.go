@@ -11,16 +11,19 @@ import (
 )
 
 func ParseSelect (query string, db *types.Database_t) (sourceTable string, selectedColumns []string, joinTables types.Join_t, conditions []types.CompareObj, limit uint64, err error) {
-    fmt.Println(query)
+    fmt.Println("start:", query)
     if query[0:len(SPACE)] != SPACE {
         return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New("Expected SELECT and then space.")
     }
     // columns
-    searchedColumns, curIndex, err := findSearchedColumns(query)
+    var curIndex int
+    selectedColumns, curIndex, err = findSearchedColumns(query)
     if err != nil {
         return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #01", err))
     } 
-    fmt.Println("searched cols:", searchedColumns)
+    fmt.Println("searched cols:", selectedColumns)
+    fmt.Println("after searched cols:", query[curIndex:])
+
 
     // table
     sourceTable, curIndex, err = findSourceTable(query, curIndex)
@@ -37,34 +40,47 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
 
     if curIndex < 0 {
         fmt.Println("We are done here -> select ... from x;")
-        return sourceTable, searchedColumns, types.Join_t{}, []types.CompareObj{}, 0, nil
+        return sourceTable, selectedColumns, types.Join_t{}, []types.CompareObj{}, 0, nil
     }
+    fmt.Println("after selected cols:", query[curIndex:])
 
     // join tables
-    joinedTables, query, err := getJoinTables(query)
+    joinTables, curIndex, err = getJoinTables(query)
     if err != nil {
         return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #04", err))
     }
-    fmt.Println(joinedTables)
-
+    fmt.Println("\n\n\n\nJoin tables:", joinTables)
+    fmt.Println(query)
+    if strings.HasPrefix(query[curIndex:], SPACE) {
+        curIndex += len(SPACE)
+    }
+    fmt.Println("after joinTables:", query[curIndex:])
     fmt.Println(query)
     // where conditions
-    compareObjs, curIndex, err := getWhereConditions(query)
+    compareObjs, plusIndex, err := getWhereConditions(query[curIndex:])
     if err != nil {
         return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #05", err))
     }
+    curIndex += plusIndex
     fmt.Println(compareObjs)
     
     if curIndex >= len(query) {
-        return sourceTable, selectedColumns, joinTables, compareObjs, 0, nil
+        fmt.Println(query)
+        fmt.Println(curIndex)
+        return sourceTable, selectedColumns, joinTables, compareObjs, 0, errors.New("herlllp")
     }
+    fmt.Println("after conditions:", query[curIndex:])
 
     // limit
+    fmt.Println("\n\n\n", query[curIndex:])
     limit, err = getLimit(query[curIndex:])
     if err != nil {
         return sourceTable, selectedColumns, joinTables, compareObjs, 0, err
     }
+    fmt.Println("after limit:", query[curIndex:])
     fmt.Println(limit)
+    fmt.Println(query)
+    fmt.Println(query[curIndex:])
 
     return sourceTable, selectedColumns, joinTables, compareObjs, limit, nil
 }
@@ -107,38 +123,51 @@ func getTableIndex (tableName string, db * types.Database_t) (int, error){
 
 
 
-func getJoinTables (query string) (joinTables types.Join_t, newQuery string, err error){
+func getJoinTables (query string) (joinTables types.Join_t, plusIndex int, err error){
     joinTables = types.Join_t{}
     for {
         joinIndex := strings.Index(query, "JOIN"+SPACE)
         if joinIndex <0 {
-            fmt.Println("No join tables")
+            fmt.Println("No more join tables")
             break
         }
         query = query[joinIndex+len("JOIN"+SPACE):]
+        plusIndex += joinIndex+len("JOIN"+SPACE)
         // check for type of join (inner, outer, etc.) here
 
         nextSpace := strings.Index(query, SPACE)
         if nextSpace < 0 {
-            return types.Join_t{}, "", errors.New("Expected <space>")
+            return types.Join_t{}, 0, errors.New("Expected <space>")
         }
+        plusIndex += nextSpace
         joinTableName := query[:nextSpace]
         fmt.Println("New join table:", joinTableName)
-        query = strings.TrimLeft(query[nextSpace:], SPACE)
+        query = query[nextSpace:]
+        if strings.HasPrefix(query, SPACE){
+            plusIndex += len(SPACE)
+            query = query[len(SPACE):]
+        }
+        fmt.Println(query)
         if query[:len("ON"+SPACE)] != "ON"+SPACE {
-            return types.Join_t{}, "", errors.New("Must specify ON-columns")
+            return types.Join_t{}, 0, errors.New("Must specify ON-columns")
         }
         
         query = query[len("ON"+SPACE):]
+        plusIndex += len("ON"+SPACE)
         fmt.Println(query)
         nextEq := strings.Index(query, "=")
+        if nextEq <= 0 {
+            return types.Join_t{}, 0, errors.New("Must specify =")
+        }
         leftJoinColumn := query[:nextEq]
         query = query[nextEq+1:]
+        plusIndex += nextEq+1
         nextSpace = strings.Index(query, SPACE)
         var rightJoinColumn string
         if nextSpace > 0 {
             rightJoinColumn = query[:nextSpace]
             query = query[nextSpace+len(SPACE):]
+            plusIndex += nextSpace+len(SPACE)
         } else {
             fmt.Println("current query:", query)
             // rightJoinColumn = strings.TrimLeft(query[nextEq+1:], " ")
@@ -153,7 +182,7 @@ func getJoinTables (query string) (joinTables types.Join_t, newQuery string, err
         }
         fmt.Println(query)
     }
-    return joinTables, query, nil
+    return joinTables, plusIndex, nil
 }
 
 
@@ -161,7 +190,8 @@ func getJoinTables (query string) (joinTables types.Join_t, newQuery string, err
 
 func getWhereConditions(query string) (cmpObjs []types.CompareObj, curIndex int, err error){
     fmt.Println(query)
-    if query[:len(WHERE+SPACE)] != WHERE+SPACE {
+    fmt.Println(len(query))
+    if len(query) <= len(WHERE + SPACE) || query[:len(WHERE+SPACE)] != WHERE+SPACE {
         return []types.CompareObj{}, 0, nil
     }
     curIndex = len("WHERE"+SPACE)
@@ -171,6 +201,8 @@ func getWhereConditions(query string) (cmpObjs []types.CompareObj, curIndex int,
         fmt.Println("parsing conditon(s)")
         nextOperator, startOffsetToNO, endOffsetToNO, err := findNextCompareOperator(query, curIndex)
         if err != nil {
+            fmt.Println("broke out here")
+            fmt.Println(query[curIndex:])
             break
         }
         var compareVal string
@@ -197,12 +229,16 @@ func getWhereConditions(query string) (cmpObjs []types.CompareObj, curIndex int,
 
         fmt.Println(query[curIndex+len(compareVal):])
         if strings.HasPrefix(compareVal, "'"){
-            curIndex += endOffsetToNO + len(compareVal + SPACE) 
+            curIndex += endOffsetToNO + len(compareVal + SPACE)
         } else {
-            curIndex += endOffsetToNO + strings.Index(query[curIndex:], SPACE) +len(SPACE) 
+            if nextSpace = strings.Index(query[curIndex+endOffsetToNO:], SPACE); nextSpace <= 0 {
+                curIndex = len(query)-1
+                break
+            } else {
+                curIndex += endOffsetToNO + nextSpace
+            }
         }
         fmt.Println(query)
-        fmt.Println(curIndex)
         if curIndex >= len(query){
             break
         }
@@ -210,6 +246,8 @@ func getWhereConditions(query string) (cmpObjs []types.CompareObj, curIndex int,
             curIndex += len(SPACE)
         }
         curConnector, nextSpace = CheckForContinueConditions(query[curIndex:])
+        fmt.Println(query[curIndex:])
+        fmt.Println("nextsplace:", nextSpace)
         curIndex += nextSpace
     }
     return cmpObjs, curIndex, nil
@@ -250,6 +288,7 @@ func CheckForContinueConditions (queryPart string) (nextconnector types.CompareC
 
 
 func getLimit(query string) (uint64, error) {
+    fmt.Println("In get limit:", query)
     if strings.HasPrefix(strings.TrimLeft(query, SPACE), LIMIT+SPACE){
         num, err := strconv.ParseUint(strings.TrimLeft(query, SPACE)[len(LIMIT+SPACE):], 10, 64)
         if err != nil {
@@ -257,7 +296,14 @@ func getLimit(query string) (uint64, error) {
         }
         return num, nil
     }
-    return 0, nil
+    if len(query) <= len(LIMIT){
+        return 0, nil
+    }
+    num, err := strconv.ParseUint(query[len(LIMIT):], 10, 64)
+    if err != nil {
+        return 0, err
+    }
+    return num, nil
 }
 
 

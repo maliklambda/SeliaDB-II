@@ -17,16 +17,25 @@ func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) 
         return [][][]byte{}, err
     }
 
+    fmt.Println("selected cols",selectedCols)
+    fmt.Println("join tbs", joinTables)
+    fmt.Println("conditions", conditions)
+    fmt.Println("limit", limit)
     fmt.Println("received", sourceTb, "as table")
+    panic(24234)
 
     values, currentTb, maxLenghts, colIndices, err := processSelectQuery(db, sourceTb, selectedCols, joinTables, conditions, limit)
     if err != nil {
         return [][][]byte{}, err
     }
 
+    fmt.Println(values)
+    fmt.Println(selectedCols)
+    fmt.Println(joinTables)
     newCols := search.FilterColumns(currentTb.Columns, colIndices)
     fmt.Println(newCols)
     fmt.Println(colIndices)
+    panic(2234)
     types.DisplayByteSlice(values, newCols, maxLenghts)
     return [][][]byte{}, err
 }
@@ -107,6 +116,14 @@ func getColumnIndeces (tb *types.Table_t, selectedColumns []string) ([]int, erro
     colNames := make([]string, len(tb.Columns))
     for i, col := range tb.Columns {
         colNames[i] = col.Name
+    }
+
+    if len(selectedColumns) == 1 && selectedColumns[0] == "*" {
+        ret := []int{}
+        for i := range tb.Columns {
+            ret = append(ret, i)
+        }
+        return ret, nil
     }
 
     foundColumns := make([]int, 0)
