@@ -45,11 +45,15 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
     fmt.Println("after selected cols:", query[curIndex:])
 
     // join tables
+    saveIndex := curIndex
     joinTables, curIndex, err = getJoinTables(query)
     if err != nil {
         return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #04", err))
     }
     fmt.Println("\n\n\n\nJoin tables:", joinTables)
+    if curIndex == 0 {
+        curIndex = saveIndex
+    }
     fmt.Println(query)
     if strings.HasPrefix(query[curIndex:], SPACE) {
         curIndex += len(SPACE)
