@@ -160,7 +160,12 @@ func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
         if !ok {
             return 0, errors.New("Type does not match value")
         }
+        fmt.Println(v2)
         v1 := string(val1) // handle conversion error: missmatched types
+        if strings.HasPrefix(v2, "'") && strings.HasSuffix(v2, "'"){
+            v2 = v2[1:len(v2)-1]
+        }
+        fmt.Printf("comparing here '%s' and '%s'\n\n", v1, v2)
         return strings.Compare(v1, v2+"\000"), nil
     }
     return 0, nil

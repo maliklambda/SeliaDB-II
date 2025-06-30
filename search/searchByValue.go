@@ -84,7 +84,7 @@ func FindEntryByKey (tb *types.Table_t, colName string, value any) ([][]byte, er
 
 
 
-func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types.CompareObj) ([][][]byte, []int, error){
+func FindEntryWhereCondition (tb *types.Table_t, selectedColumnsIndeces []int, limit uint64, cmpObjs ... types.CompareObj) ([][][]byte, []int, error){
     indices := make([]int, len(cmpObjs))
     for i, cmp := range cmpObjs {
         index, err := entries.StringToColumnIndex(tb, cmp.ColName)
@@ -98,18 +98,20 @@ func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types
     if limit < 1 {
         limit = 1
     }
+
+    newCols := FilterColumns(tb.Columns, selectedColumnsIndeces)
     
-    maxLengths := make([]int, 0)
+    maxLengths := make([]int, len(selectedColumnsIndeces))
     returnValues := make([][][]byte, 0)
     cur := tb.StartEntries
-    for range tb.Entries.NumOfEntries {
-        entry, _, err := entries.ReadEntryFromFile(tb, int(cur))
+    for {
+        entry, pNextEntry, err := entries.ReadEntryFromFile(tb, int(cur))
         if err != nil {
-            return [][][]byte{}, []int{}, err
+            break
         }
-        cur += uint16(entries.GetEntryLength(entry))
+        cur = uint16(pNextEntry)
         for i, cmp := range cmpObjs {
-            fmt.Println("Comparing", entry[indices[i]], "and", cmp.Value)
+            fmt.Println("Comparing", entry[indices[i]], "and", []byte(cmp.Value.(string)))
             // check if entry matches condition
             compareResult, err := types.CompareValues(tb.Columns[indices[i]].Type, entry[indices[i]], cmp.Value)
             if err != nil {
@@ -119,9 +121,11 @@ func FindEntryWhereCondition (tb *types.Table_t, limit uint16, cmpObjs ... types
                 break
             }
             if i == len(cmpObjs) -1 {
+                entry = filterBufferByColumnIndices(entry, selectedColumnsIndeces)
                 returnValues = append(returnValues, entry)
+                fmt.Println("Lets goooooo\n\n\n\n\n ")
             }
-            maxLengths = types.UpdateLongestDisplay(maxLengths, entry, tb.Columns)
+            maxLengths = types.UpdateLongestDisplay(maxLengths, entry, newCols)
         }
         // if limit is exceeded, break out
         if len(returnValues) >= int(limit) {

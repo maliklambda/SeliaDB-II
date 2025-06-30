@@ -22,20 +22,20 @@ func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) 
     fmt.Println("conditions", conditions)
     fmt.Println("limit", limit)
     fmt.Println("received", sourceTb, "as table")
-    panic(24234)
+    // panic(24234)
 
     values, currentTb, maxLenghts, colIndices, err := processSelectQuery(db, sourceTb, selectedCols, joinTables, conditions, limit)
     if err != nil {
         return [][][]byte{}, err
     }
+    fmt.Println(colIndices)
 
     fmt.Println(values)
     fmt.Println(selectedCols)
     fmt.Println(joinTables)
     newCols := search.FilterColumns(currentTb.Columns, colIndices)
     fmt.Println(newCols)
-    fmt.Println(colIndices)
-    panic(2234)
+    fmt.Println(values)
     types.DisplayByteSlice(values, newCols, maxLenghts)
     return [][][]byte{}, err
 }
@@ -72,11 +72,11 @@ func processSelectQuery (
         } else if isIndexed {
             return [][][]byte{}, nil, []int{}, []int{}, errors.New("Searching by indexed column is not yet implemented")
         }
-        vals, maxLenghts, err := search.FindEntryWhereCondition(currentTb, uint16(limit))
+        vals, maxLenghts, err := search.FindEntryWhereCondition(currentTb, colIndices, uint64(limit), conditions...)
         if err != nil {
             return [][][]byte{}, nil, []int{}, []int{}, err
         }
-        return vals, currentTb, maxLenghts, []int{}, nil
+        return vals, currentTb, maxLenghts, colIndices, nil
     }
 
     if len(conditions) > 1 {
@@ -118,7 +118,10 @@ func getColumnIndeces (tb *types.Table_t, selectedColumns []string) ([]int, erro
         colNames[i] = col.Name
     }
 
+    fmt.Println(selectedColumns)
+    fmt.Println("maybe every col?")
     if len(selectedColumns) == 1 && selectedColumns[0] == "*" {
+        fmt.Println("every colllll")
         ret := []int{}
         for i := range tb.Columns {
             ret = append(ret, i)
