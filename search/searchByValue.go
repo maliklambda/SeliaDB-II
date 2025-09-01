@@ -27,6 +27,9 @@ func IterateOverEntriesInFile (tb *types.Table_t, selectedColumnsIndeces []int, 
     fmt.Println("Iterating over entries on file!!!!!!")
     maxLengths := make([]int, len(tb.Columns))
     cols := FilterColumns(tb.Columns, selectedColumnsIndeces)
+		if len(selectedColumnsIndeces) <= 0 {
+				cols = tb.Columns
+		}
     var currentPos uint32 = uint32(tb.StartEntries)
     values := [][][]byte{}
     for {
@@ -46,6 +49,7 @@ func IterateOverEntriesInFile (tb *types.Table_t, selectedColumnsIndeces []int, 
         maxLengths = types.UpdateLongestDisplay(maxLengths, buffer, cols)
         currentPos = uint32(pNextEntry)
     }
+		fmt.Println("\n\n\n", selectedColumnsIndeces)
     fmt.Println("Here")
     fmt.Println(values)
     return values, maxLengths, nil
@@ -129,7 +133,7 @@ func FindEntryWhereCondition (tb *types.Table_t, selectedColumnsIndeces []int, l
         }
         // if limit is exceeded, break out
         if len(returnValues) >= int(limit) {
-            return returnValues, []int{}, nil
+            return returnValues, maxLengths, nil
         }
     }
     return returnValues, maxLengths, nil

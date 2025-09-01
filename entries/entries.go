@@ -15,7 +15,7 @@ func AddEntry (tb *types.Table_t, values ... any) error {
         tb.Entries = &types.Entries_t{}
     }
     if len(values) != int(tb.NumOfColumns) {
-        return errors.New(fmt.Sprintf("Must pass correct number of arguments. Expected %d, got %d", tb.NumOfColumns, len(values)))
+        return fmt.Errorf("Must pass correct number of arguments. Expected %d, got %d", tb.NumOfColumns, len(values))
     }
     var entry []byte
     var err error
@@ -73,7 +73,7 @@ func ReadEntryIndex (tb *types.Table_t, index int) ([][]byte, error) {
     }
 
     if tb.Entries.NumOfEntries-1 < uint64(index) {
-        return [][]byte{}, errors.New(fmt.Sprintf("Entries does not contain %d many values (only %d)", index, tb.Entries.NumOfEntries))
+        return [][]byte{}, fmt.Errorf("Entries does not contain %d many values (only %d)", index, tb.Entries.NumOfEntries)
     }
     fmt.Println(tb.Entries.Values[index])
 

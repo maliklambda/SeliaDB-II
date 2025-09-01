@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-    "os"
+  "os"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/types"
@@ -35,7 +35,7 @@ func AddIndex(tb *types.Table_t, colName string) error {
     }
     newRoot := &btree.Node_t{}
     fmt.Println("\n\n\n\nIndexing", colName, "of type", tb.Columns[colIndex].Type)
-    currentPos := tb.StartEntries + uint16(types.GetEntryBuffer())
+    currentPos := tb.StartEntries 
     if tb.Entries == nil || tb.Entries.NumOfEntries == 0 {
         tb.Indeces = append(tb.Indeces, types.Index_t{
             ColIndex: uint32(colIndex),
@@ -43,11 +43,12 @@ func AddIndex(tb *types.Table_t, colName string) error {
         })
         return nil
     }
-    for range tb.Entries.NumOfEntries {
+		fmt.Println(tb.Entries.NumOfEntries)
+    for {
         fmt.Println("Reading entry at", currentPos)
         buffer, pNextEntry, err := ReadEntryFromFile(tb, int(currentPos))
         if err != nil {
-            return err
+						break
         }
 
         fmt.Println("inserting to index", buffer[colIndex])
@@ -69,7 +70,7 @@ func AddIndex(tb *types.Table_t, colName string) error {
         }
         currentPos = uint16(pNextEntry)
     }
-    // tb.Indeces = append(tb.Indeces, types.Index_t{Root: (*any)(newRoot)})
+    tb.Indeces = append(tb.Indeces, types.Index_t{Root: btree.UnsafePNode_tToPAny(newRoot)})
 
     fmt.Println(newRoot)
     btree.Traverse(newRoot, newRoot)

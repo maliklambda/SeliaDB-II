@@ -34,7 +34,8 @@ func isKeyInNode(current *Node_t, searchedKey any, tp types.Type_t) (bool, int) 
         if entry.Key == searchedKey {
             return true, i
         }
-        fmt.Println("Comparing ", entry.Key, " and ", searchedKey)
+        fmt.Println("Comparing ", entry.Key, " and", searchedKey, "end")
+				fmt.Println(tp)
         if res, err := types.CompareAnyValues(entry.Key, searchedKey, tp); res > 0 {
             if err != nil {
                 return false, 0

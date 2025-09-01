@@ -74,13 +74,15 @@ func GetDisplayLength (v any, tp Type_t) int {
 
 func UpdateLongestDisplay (maxLengths []int, bytes [][]byte, cols []Column_t) []int {
     var length int
+		fmt.Println("\n\n", cols)
     for i, col := range cols {
         length = GetDisplayLengthByte(bytes[i], col.Type)
         if length > maxLengths[i] {
             maxLengths[i] = length
         }
     }
-    fmt.Println(maxLengths)
+    fmt.Println("\n\n\n", maxLengths)
+		fmt.Println(length)
     return maxLengths
 }
 
@@ -89,3 +91,11 @@ func UpdateLongestDisplay (maxLengths []int, bytes [][]byte, cols []Column_t) []
 func DisplayErrorMessage (err error) {
     fmt.Println(err.Error())
 }
+
+
+func GetMaxLengthFromBytes (bytes [][]byte, cols []Column_t) (maxLengths []int) {
+		return UpdateLongestDisplay(maxLengths, bytes, cols)
+}
+
+
+

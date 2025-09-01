@@ -6,7 +6,10 @@ import (
 	"slices"
 	"strings"
 
+	// "github.com/MalikL2005/SeliaDB-II/btree"
+	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/commands/parser"
+	"github.com/MalikL2005/SeliaDB-II/entries"
 	"github.com/MalikL2005/SeliaDB-II/search"
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
@@ -40,13 +43,15 @@ func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) 
     return [][][]byte{}, err
 }
 
+
+
 func processSelectQuery (
-    db * types.Database_t,
-    sourceTable string, 
-    selectedColumns []string,
-    joinTables types.Join_t, 
-    conditions []types.CompareObj,
-    limit uint64) (values [][][]byte, sourceTb *types.Table_t, maxLenghts, colIndices []int, err error){
+				db * types.Database_t,
+				sourceTable string, 
+				selectedColumns []string,
+				joinTables types.Join_t, 
+				conditions []types.CompareObj,
+				limit uint64) (values [][][]byte, sourceTb *types.Table_t, maxLenghts, colIndices []int, err error){
 
     fmt.Println("\n\n\nhere:", sourceTable)
     tbIndex, err := getTableIndex(db, sourceTable)
@@ -67,11 +72,28 @@ func processSelectQuery (
 
     if len(conditions) == 1 {
         fmt.Println("checking if this col is indexed:", conditions[0].ColName)
-        if isIndexed, err := IsColIndexed(currentTb, conditions[0].ColName); err != nil {
+				fmt.Println(conditions[0])
+        if isIndexed, iCol, err := IsColIndexed(currentTb, conditions[0].ColName); err != nil {
             return [][][]byte{}, nil, []int{}, []int{}, err
         } else if isIndexed {
-            return [][][]byte{}, nil, []int{}, []int{}, errors.New("Searching by indexed column is not yet implemented")
-        }
+						fmt.Println(currentTb.Columns[iCol])
+						fmt.Println(currentTb.Indeces[iCol])
+						root := btree.UnsafePAnyToPNode_t(currentTb.Indeces[iCol].Root) 
+						btree.Traverse(root, root)
+						entry, err := btree.SearchKey(root, root, conditions[0].Value, currentTb.Columns[iCol].Type)
+						if err != nil {
+								return [][][]byte{}, nil, []int{}, []int{}, err
+						}
+						fmt.Println(entry)
+						val, _, err := entries.ReadEntryFromFile(currentTb, int(entry.Value))
+						if err != nil {
+								return [][][]byte{}, nil, []int{}, []int{}, err
+						}
+						fmt.Println(val)
+						newCols := search.FilterColumns(currentTb.Columns, colIndices)
+						maxLenghts = types.GetMaxLengthFromBytes(val, newCols)
+            return [][][]byte{val}, currentTb, maxLenghts, colIndices, errors.New("Multiple conditions is not implemented yet")
+				}
         vals, maxLenghts, err := search.FindEntryWhereCondition(currentTb, colIndices, uint64(limit), conditions...)
         if err != nil {
             return [][][]byte{}, nil, []int{}, []int{}, err
@@ -107,7 +129,7 @@ func getTableIndex (db * types.Database_t, s string) (int, error) {
             return i, nil
         }
     }
-    return -1, errors.New(fmt.Sprintf("Table %s does not exist in %s", s, db.Name))
+    return -1, fmt.Errorf("Table %s does not exist in %s", s, db.Name)
 }
 
 
@@ -142,7 +164,7 @@ func getColumnIndeces (tb *types.Table_t, selectedColumns []string) ([]int, erro
     }
 
     if len(unknownColumns) > 0 {
-        return []int{}, errors.New(fmt.Sprintf("Column(s) %s do not exist", strings.Join(unknownColumns[:], "")))
+        return []int{}, fmt.Errorf("Column(s) %s do not exist", strings.Join(unknownColumns[:], ""))
     }
     fmt.Println(foundColumns)
     return foundColumns, nil
@@ -150,15 +172,15 @@ func getColumnIndeces (tb *types.Table_t, selectedColumns []string) ([]int, erro
 
 
 
-func IsColIndexed (tb * types.Table_t, colName string) (bool, error) {
+func IsColIndexed (tb * types.Table_t, colName string) (bool, int, error) {
     colNames := make([]string, len(tb.Columns))
     for i, col := range tb.Columns {
         colNames[i] = col.Name
     }
     if iCol := slices.Index(colNames, colName); iCol == -1 {
-        return false, errors.New(fmt.Sprintf("Column %s does not exist in table %s.", colName, tb.Name))
+        return false, 0, fmt.Errorf("Column %s does not exist in table %s.", colName, tb.Name)
     } else {
-        return tb.Columns[iCol].Indexed, nil
+        return tb.Columns[iCol].Indexed, iCol, nil
     }
 }
 

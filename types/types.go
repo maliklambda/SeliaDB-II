@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"unsafe"
+	"strconv"
 )
 
 type Database_t struct {
@@ -348,12 +349,20 @@ func CompareAnyValues (v1, v2 any, tp Type_t) (int, error){
     case INT32:
         i1, ok := v1.(int32)
         if !ok {
+						fmt.Println("error i1")
             return 0, errors.New("Expected type INT32.")
         }
-        i2, ok := v2.(int32)
+        i2, ok := v2.(int32) // this may look weird, but for some reason both cases (valid) occur
         if !ok {
-            return 0, errors.New("Expected type INT32.")
+						i2_str := v2.(string)
+						i2_int, err := strconv.Atoi(i2_str)
+						if err != nil {
+								fmt.Println("error i2.2")
+								return 0, errors.New("Expected type INT32.")
+						}
+						i2 = int32(i2_int)
         }
+        fmt.Println("comparing", i1, i2)
         if i1 > i2 {
             return 1, nil
         } else if i1 < i2 {
