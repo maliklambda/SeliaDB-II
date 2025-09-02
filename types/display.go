@@ -94,6 +94,7 @@ func DisplayErrorMessage (err error) {
 
 
 func GetMaxLengthFromBytes (bytes [][]byte, cols []Column_t) (maxLengths []int) {
+		maxLengths = make([]int, len(cols))
 		return UpdateLongestDisplay(maxLengths, bytes, cols)
 }
 

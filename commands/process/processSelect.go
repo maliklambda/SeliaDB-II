@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	// "github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/commands/parser"
 	"github.com/MalikL2005/SeliaDB-II/entries"
@@ -85,14 +84,13 @@ func processSelectQuery (
 								return [][][]byte{}, nil, []int{}, []int{}, err
 						}
 						fmt.Println(entry)
-						val, _, err := entries.ReadEntryFromFile(currentTb, int(entry.Value))
+						val, _, err := entries.ReadEntryFromFile(currentTb, int(entry.Value)+int(currentTb.StartEntries))
 						if err != nil {
 								return [][][]byte{}, nil, []int{}, []int{}, err
 						}
-						fmt.Println(val)
 						newCols := search.FilterColumns(currentTb.Columns, colIndices)
 						maxLenghts = types.GetMaxLengthFromBytes(val, newCols)
-            return [][][]byte{val}, currentTb, maxLenghts, colIndices, errors.New("Multiple conditions is not implemented yet")
+            return [][][]byte{val}, currentTb, maxLenghts, colIndices, nil
 				}
         vals, maxLenghts, err := search.FindEntryWhereCondition(currentTb, colIndices, uint64(limit), conditions...)
         if err != nil {

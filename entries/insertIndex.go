@@ -93,18 +93,18 @@ func AddIndex(tb *types.Table_t, colName string) error {
 
 func FindColNameIndex (tb * types.Table_t, colName string) (int, error) {
     for i, col := range tb.Columns {
-        if strings.ToUpper(col.Name) == strings.ToUpper(colName) {
+				if strings.EqualFold(col.Name, colName){
             fmt.Println("Found colname in tb.columns")
             return i, nil
         }
     }
-    return -1, errors.New(fmt.Sprintf("Column %s does not exist in table %s", colName, tb.Name))
+    return -1, fmt.Errorf("Column %s does not exist in table %s", colName, tb.Name)
 }
 
 
 func UpdateIsColIndexed (tb * types.Table_t, colIndex int) error {
     if colIndex >= len(tb.Columns){
-        return errors.New(fmt.Sprintf("Column index is too large: got %d but have only %d column(s)", colIndex, len(tb.Columns)))
+        return fmt.Errorf("Column index is too large: got %d but have only %d column(s)", colIndex, len(tb.Columns))
     }
     tb.Columns[colIndex].Indexed = true
     f, err := os.OpenFile(tb.MetaData.FilePath, os.O_RDWR|os.O_CREATE, 0644)
