@@ -94,14 +94,37 @@ func main (){
         fmt.Println(err)
         return
     }
+    tb4, err := entries.ReadTableFromFile(tb1.MetaData.FilePath)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println("\n\n\n\n\n", tb4)
 
-    query = "SELECT id, email, name FROM tb1 WHERE id = 22 LIMIT 100;" 
+    query = "SELECT * FROM tb1 WHERE id = 24;" 
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)
         return
     }
 
+    entries.AddEntry(tb3, int32(23), "OtherEdosWhoo",  "Edos@gmail.com")
+
+		vals, maxLengths, err = search.IterateOverEntriesInFile(tb3, []int{}, 100)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    types.DisplayByteSlice(vals, tb1.Columns, maxLengths)
+
+    query = "SELECT * FROM tb3 JOIN tb1 ON id = tb1.id LIMIT 10;"
+    err = commands.CommandWrapper(query, db1)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+		return
 
 
 

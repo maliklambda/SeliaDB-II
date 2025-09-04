@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/binary"
+	"slices"
 	"errors"
 	"fmt"
 	"io"
@@ -444,6 +445,8 @@ const (
     OUTER
     LEFT 
     RIGHT
+		LEFT_OUTER
+		RIGHT_OUTER
     MISSING_JOIN_TYPE
 )
 
@@ -468,4 +471,18 @@ func GetJoinType(s string) JoinType {
         return MISSING_JOIN_TYPE
     }
     return jt
+}
+
+
+
+func IsColIndexed (tb * Table_t, colName string) (bool, int, error) {
+    colNames := make([]string, len(tb.Columns))
+    for i, col := range tb.Columns {
+        colNames[i] = col.Name
+    }
+    if iCol := slices.Index(colNames, colName); iCol == -1 {
+        return false, 0, fmt.Errorf("Column %s does not exist in table %s.", colName, tb.Name)
+    } else {
+        return tb.Columns[iCol].Indexed, iCol, nil
+    }
 }

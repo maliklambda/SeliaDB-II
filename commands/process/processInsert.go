@@ -8,6 +8,7 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/commands/parser"
 	"github.com/MalikL2005/SeliaDB-II/entries"
 	"github.com/MalikL2005/SeliaDB-II/types"
+	"github.com/MalikL2005/SeliaDB-II/joins"
 )
 
 
@@ -17,7 +18,7 @@ func INSERT (query string, db * types.Database_t) error {
         return err
     }
 
-    tbIndex, err := getTableIndex(db, tbString)
+    tbIndex, err := joins.GetTableIndex(db, tbString)
     if err != nil {
         return err
     }
