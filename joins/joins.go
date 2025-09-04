@@ -20,7 +20,10 @@ type joinCompareObj struct {
 
 func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj types.Join_t) (values [][][]byte, columns []types.Column_t, maxLengths []int, err error){
 		start_tb := db.Tables[i_start_tb]
-		columns = append(columns, start_tb.Columns...)
+		for _, col := range start_tb.Columns {
+				col.Name = start_tb.Name + "." + col.Name
+				columns = append(columns, col)
+		}
 		values, maxLengths, err = SELECT_ALL(start_tb)
 		if err != nil {
 				return [][][]byte{}, []types.Column_t{}, []int{}, err
@@ -35,7 +38,7 @@ func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj
 						case types.INNER:
 								values, columns, maxLengths, err = InnerJoin(db, i_start_tb, columns, right_tb_name, join)
 								if err != nil {
-										return [][][]byte{}, []types.Column_t{}, []int{}, err
+										return [][][]byte{}, []types.Column_t{}, []int{}, fmt.Errorf("Could not join columns: %s", err)
 								}
 								fmt.Println("successful INNER JOIN with ", right_tb_name)
 						case types.LEFT:

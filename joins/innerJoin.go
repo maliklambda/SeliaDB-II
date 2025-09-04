@@ -26,115 +26,50 @@ func InnerJoin (db *types.Database_t,
 		}
 		right_tb := db.Tables[i_right_tb]
 		
-		// remove tablename from right_column
-		// "tb_name.col_name" becomes "col_name"
-		right_join_col_name := join.Right
-		if strings.HasPrefix(right_join_col_name, right_tb_name + ".") {
-				right_join_col_name = right_join_col_name[len(right_tb_name) + 1:]
-		}
-
+		right_join_col_name := strip_table_name(join.Right, right_tb_name)
 		fmt.Println("right col name:", right_join_col_name)
-		is_indexed, i_right_join_col, err := types.IsColIndexed(right_tb, right_join_col_name)
+		is_right_indexed, i_right_join_col, err := types.IsColIndexed(right_tb, right_join_col_name)
 		if err != nil {
 				return nil, nil, nil, err
 		}
+
+		left_join_col_name := strip_table_name(join.Left, left_tb.Name)
+		fmt.Println("left col name:", right_join_col_name)
+		_, i_left_join_col, err := types.IsColIndexed(left_tb, left_join_col_name)
+		if err != nil {
+				return nil, nil, nil, err
+		}
+
+		// if not the same type, join is not possible
+		if right_tb.Columns[i_right_join_col].Type != left_tb.Columns[i_left_join_col].Type {
+				return nil, nil, nil, fmt.Errorf("Missmatch of join-types: %s (left) -> %s and %s (right) -> %s", 
+						left_tb.Columns[i_left_join_col].Name, left_tb.Columns[i_left_join_col].Type.String(), 
+						right_join_col_name, right_tb.Columns[i_right_join_col].Type.String())
+		}
+
+		// append right_tb_columns to return_columns
+		for _, col := range right_tb.Columns {
+				col.Name = right_tb_name + "." + col.Name
+				columns = append(columns, col)
+		}
 		
-		if is_indexed {
+		if is_right_indexed {
 				fmt.Println("Yay, n * log(n)")
 				fmt.Println("Looking up index of", right_tb.Columns[i_right_join_col].Name)
-				btree.Traverse(btree.UnsafePAnyToPNode_t(right_tb.Indeces[i_right_join_col].Root), btree.UnsafePAnyToPNode_t(right_tb.Indeces[i_right_join_col].Root))
+				root := btree.UnsafePAnyToPNode_t(right_tb.Indeces[i_right_join_col].Root)
+				btree.Traverse(root, root)
 		} else {
 				fmt.Println("Awwwwww no index for this join: n² :(")
 		}
+		fmt.Println(columns)
 		return nil, nil, nil, fmt.Errorf("Inner join is not fully implemented yet")
+		// return values, columns, maxLengths, nil
 }
 
 
 
-func InnerJoinIndexed (left, right * types.Table_t, leftCol, rightCol string) (values [][][]byte, joinedTb *types.Table_t, maxLengths []int, err error) {
-    fmt.Println("Joining ", left.Name, " and ", right.Name)
-    leftIndex, err := entries.StringToColumnIndex(left, leftCol)
-    if err != nil {
-        return [][][]byte{}, nil, []int{}, err
-    }
-    if !left.IsColIndexed(uint32(leftIndex)){
-        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint("Cannot join on non-indexed column ", displayTableAndColumn(left, leftIndex), " (yet)"))
-    }
-
-    rightIndex, err := entries.StringToColumnIndex(right, rightCol)
-    if err != nil {
-        return [][][]byte{}, nil, []int{}, err
-    }
-    if !right.IsColIndexed(uint32(rightIndex)){
-        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint("Cannot join on non-indexed column ", displayTableAndColumn(right, rightIndex), "(yet)"))
-    }
-
-    if left.Columns[leftIndex].Type != right.Columns[rightIndex].Type {
-        return [][][]byte{}, nil, []int{}, errors.New(fmt.Sprint(
-            "Cannot join tables ", displayTableAndColumn(left, leftIndex), " and ",
-            displayTableAndColumn(right, rightIndex),
-            " -> missmatched types"))
-        }
-
-    rightIndicesIndex, err := right.FindIndex(uint32(rightIndex))
-    if err != nil {
-        return [][][]byte{}, nil, []int{}, err
-    }
-    rt := btree.UnsafePAnyToPNode_t(right.Indeces[rightIndicesIndex].Root)
-
-    newTb, err := mergeTables(left, right, []struct {left int; right int}{
-        {left: leftIndex, right: rightIndex},
-    })
-    if err != nil {
-        return [][][]byte{}, nil, []int{}, err
-    }
-    maxLengths = make([]int, len(newTb.Columns))
-
-    currentPos := left.StartEntries
-    values = [][][]byte{}
-    fmt.Println(left)
-    fmt.Println(right)
-    fmt.Print("\n\n\n\n\n\n")
-    for {
-        fmt.Println("Reading entry (outer) at", currentPos)
-        buffer, _, err := entries.ReadEntryFromFile(left, int(currentPos))
-        if err != nil {
-            fmt.Println(err)
-            break
-        }
-        currentPos += uint16(entries.GetEntryLength(buffer))
-
-        // check here for filter on left column -> continue if not met
-
-        // find current value from left in right
-        val, err := types.ByteSliceToValue(buffer[leftIndex], left.Columns[leftIndex].Type)
-        if err != nil {
-            return [][][]byte{}, nil, []int{}, err
-        }
-        fmt.Println("finding ", val, " in right-join-column")
-        entry, err := btree.SearchKey(rt, rt, val, right.Columns[rightIndex].Type)
-        if err != nil {
-            continue
-        }
-        
-        // check here for filter on right column -> continue if not met
-
-
-        // remove join column from left
-        rightValues, _, err := entries.ReadEntryFromFile(right, int(entry.Value))
-        new_vals := append(slices.Delete(buffer, leftIndex, leftIndex +1), rightValues...)
-        // update longest display value
-        maxLengths = types.UpdateLongestDisplay(maxLengths, new_vals, newTb.Columns)
-        fmt.Println(maxLengths)
-        values = append(values, new_vals)
-    }
-    fmt.Print("\n\n\n\n\n\n")
-    fmt.Println(right.Indeces)
-    fmt.Println(rightIndicesIndex)
-    btree.Traverse(rt, rt)
-    fmt.Println("Max lengths:", maxLengths)
-    return values, newTb, maxLengths, nil
-}
+// func InnerJoinIndexed () (values [][][]byte, joinedTb *types.Table_t, maxLengths []int, err error) {
+// }
 
 
 func displayTableAndColumn (table * types.Table_t, colIndex int) string {
@@ -257,6 +192,17 @@ func InnerJoinIndexedChained (left, right * types.Table_t, leftValues [][][]byte
     btree.Traverse(rt, rt)
     fmt.Println("Max lengths:", maxLengths)
     return values, newTb, columns, maxLengths, nil
+}
+
+
+
+// remove tablename from right_column
+// "tb_name.col_name" becomes "col_name"
+func strip_table_name (colName, tableName string) string {
+		if strings.HasPrefix(colName, tableName + ".") {
+				return colName[len(tableName) + 1:]
+		}
+		return colName
 }
 
 
