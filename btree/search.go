@@ -17,7 +17,7 @@ func SearchKey (root *Node_t, current *Node_t, searchedKey any, tp types.Type_t)
         return &(*current.Entries)[childIndex], nil
     }
     if current.Children == nil || len(*current.Children) == 0 {
-        return nil, errors.New("Nothing found")
+        return nil, nil
     }
     return SearchKey(root, &(*current.Children)[childIndex], searchedKey, tp)
 

@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"slices"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -50,6 +51,9 @@ type Column_t struct {
     Size uint16
     Indexed bool
 }
+
+
+type MaxLengths_t []int
 
 
 type Index_t struct {
@@ -124,6 +128,15 @@ func (tp Type_t) GetTypeSize (varCharLen uint32) (uint16, error) {
         return 0, errors.New("No size for this type")
     }
     return uint16(size), nil
+}
+
+
+func (tp Type_t) GetTypeParser () func ([]byte) (any, error) {
+		switch tp {
+				case INT32: return BytesToInt32
+				case VARCHAR: return BytesToVarChar
+		}
+		return nil
 }
 
 
@@ -486,3 +499,22 @@ func IsColIndexed (tb * Table_t, colName string) (bool, int, error) {
         return tb.Columns[iCol].Indexed, iCol, nil
     }
 }
+
+
+func BytesToInt32 (b []byte) (any, error) {
+		var res int32
+			err := binary.Read(bytes.NewReader(b), binary.NativeEndian, &res)
+		if err != nil {
+				return 0, err
+		}
+		return res, nil
+}
+
+
+
+func BytesToVarChar (bytes []byte) (any, error) {
+		return string(bytes), nil
+}
+
+
+

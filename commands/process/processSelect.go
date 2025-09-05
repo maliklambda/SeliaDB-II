@@ -72,7 +72,6 @@ func processSelectQuery (
 				// alternatively, they can be filtered in JOIN (but this might be a little too much)
 				// Yet this would enable filtering on every JOIN (which would be very cool)
 				return joins.JOIN(db, uint(tbIndex), selectedColumns, joinTables)
-        // return [][][]byte{}, nil, []int{}, errors.New("Join is not implemented yet")
     }
 
     if len(conditions) == 1 {
@@ -172,7 +171,7 @@ func SELECT_ALL (table *types.Table_t) (values [][][]byte, maxLenghts []int, err
 		for i_col := range table.Columns {
 				colIndices = append(colIndices, i_col)
 		}
-    values, maxLenghts, err = search.IterateOverEntriesInFile(table, colIndices, 0)
+    values, maxLenghts, err = search.IterateOverEntriesInFile(table, colIndices, 100)
     if err != nil {
         return [][][]byte{}, []int{}, err
     }

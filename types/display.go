@@ -9,7 +9,7 @@ import (
 
 )
 
-func DisplayByteSlice (bytes [][][]byte, cols []Column_t, maxLengths []int) {
+func DisplayByteSlice (bytes [][][]byte, cols []Column_t, maxLengths MaxLengths_t) {
     fmt.Println(cols)
     if len (bytes) == 0 {
         fmt.Println("Empty set")
@@ -72,7 +72,7 @@ func GetDisplayLength (v any, tp Type_t) int {
 
 
 
-func UpdateLongestDisplay (maxLengths []int, bytes [][]byte, cols []Column_t) []int {
+func UpdateLongestDisplay (maxLengths MaxLengths_t, bytes [][]byte, cols []Column_t) []int {
     var length int
 		fmt.Println("\n\n", cols)
     for i, col := range cols {
@@ -93,7 +93,7 @@ func DisplayErrorMessage (err error) {
 }
 
 
-func GetMaxLengthFromBytes (bytes [][]byte, cols []Column_t) (maxLengths []int) {
+func GetMaxLengthFromBytes (bytes [][]byte, cols []Column_t) (maxLengths MaxLengths_t) {
 		maxLengths = make([]int, len(cols))
 		return UpdateLongestDisplay(maxLengths, bytes, cols)
 }

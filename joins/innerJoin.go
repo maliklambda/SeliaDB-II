@@ -16,7 +16,8 @@ func InnerJoin (db *types.Database_t,
 		left_tb_index uint,
 		columns []types.Column_t,
 		right_tb_name string,
-		join struct{Left string; Right string; How types.JoinType}) (values [][][]byte, cols []types.Column_t, maxLengths []int, err error) {
+		prev_max_lengths types.MaxLengths_t,
+		join struct{Left string; Right string; How types.JoinType}) (values [][][]byte, cols []types.Column_t, maxLengths types.MaxLengths_t, err error) {
 		left_tb := db.Tables[left_tb_index]
 		fmt.Println("Joining", left_tb.Name, "and", right_tb_name, "on", join.Left, "and", join.Right)
 
@@ -27,7 +28,9 @@ func InnerJoin (db *types.Database_t,
 		right_tb := db.Tables[i_right_tb]
 		
 		right_join_col_name := strip_table_name(join.Right, right_tb_name)
-		fmt.Println("right col name:", right_join_col_name)
+		fmt.Println("right col name:", right_join_col_name, " - right tb name:", right_tb_name)
+		fmt.Println(right_tb.Indeces)
+		fmt.Println(right_tb.Columns)
 		is_right_indexed, i_right_join_col, err := types.IsColIndexed(right_tb, right_join_col_name)
 		if err != nil {
 				return nil, nil, nil, err
@@ -53,23 +56,74 @@ func InnerJoin (db *types.Database_t,
 				columns = append(columns, col)
 		}
 		
+		// fill values
+		values, maxLengths, err = SELECT_ALL(left_tb)
+		if err != nil {
+				return nil, nil, nil, fmt.Errorf("Failed select all: %s", err)
+		}
+	
+		
+		fmt.Println(is_right_indexed)		
 		if is_right_indexed {
 				fmt.Println("Yay, n * log(n)")
 				fmt.Println("Looking up index of", right_tb.Columns[i_right_join_col].Name)
 				root := btree.UnsafePAnyToPNode_t(right_tb.Indeces[i_right_join_col].Root)
 				btree.Traverse(root, root)
+				values, maxLengths, err = InnerJoinIndexed(values, columns, 0, root, right_tb, uint(i_right_join_col), prev_max_lengths)
+				if err != nil {
+						return nil, nil, nil, fmt.Errorf("InnerJoinIndexed failed: %s", err)
+				}
 		} else {
 				fmt.Println("Awwwwww no index for this join: n² :(")
+				return nil, nil, nil, fmt.Errorf("Inner join for non indexed column is not fully implemented yet")
 		}
 		fmt.Println(columns)
-		return nil, nil, nil, fmt.Errorf("Inner join is not fully implemented yet")
-		// return values, columns, maxLengths, nil
+		return values, columns, maxLengths, nil
 }
 
 
 
-// func InnerJoinIndexed () (values [][][]byte, joinedTb *types.Table_t, maxLengths []int, err error) {
-// }
+func InnerJoinIndexed (left_values [][][]byte, left_cols []types.Column_t, left_join_col_index uint, 
+		root_right *btree.Node_t,
+		right_tb *types.Table_t, right_join_col_index uint, maxLengths_left types.MaxLengths_t) (values [][][]byte, maxLengths types.MaxLengths_t, err error) {
+		tp := left_cols[left_join_col_index].Type
+		var right_val [][]byte
+
+		parse_type := tp.GetTypeParser()
+		right_max_lengths := make([]int, len(right_tb.Columns))
+		fmt.Println("left vals:", left_values)
+		for _, left_val := range left_values {
+				joined_left_val := left_val[left_join_col_index]
+				fmt.Println("joined left val", joined_left_val)
+				lookup_val, err := parse_type(joined_left_val)
+				if err != nil {
+						return nil, nil, fmt.Errorf("Failed to parse type (for %s): %s", joined_left_val, err)
+				}
+				fmt.Println("Looking for index of", lookup_val)
+				right_index, err := btree.SearchKey(root_right, root_right, lookup_val, tp)
+				if err != nil {
+						return nil, nil, fmt.Errorf("Failed to look up key %s: %s", lookup_val, err)
+				}
+				
+				if right_index != nil {
+						fmt.Println("Reading entry @", right_index)
+						right_val, _, err = entries.ReadEntryFromFile(right_tb, int(right_index.Value + uint32(right_tb.StartEntries)))
+						if err != nil {
+								return nil, nil, fmt.Errorf("Failed to read entry: %s", err)
+						}
+						right_max_lengths = types.UpdateLongestDisplay(right_max_lengths, right_val, right_tb.Columns)
+						
+						values = append(values, append(left_val, right_val...))
+				}
+		}
+		// extend maxLengths with right_cols
+		maxLengths = maxLengths_left
+		for _, v := range right_max_lengths {
+				maxLengths = append(maxLengths, v)
+		}
+		fmt.Println(values)
+		return values, maxLengths, nil
+}
 
 
 func displayTableAndColumn (table * types.Table_t, colIndex int) string {

@@ -65,7 +65,7 @@ func main (){
 
     db1 := &types.Database_t{
         Name: "db1",
-        Tables: []*types.Table_t{tb2, tb3},
+        Tables: []*types.Table_t{tb1, tb3},
         NumOfTables: 2,
     }
 
@@ -81,7 +81,7 @@ func main (){
     }
     types.DisplayByteSlice(vals, tb1.Columns, maxLengths)
 
-    query := "INSERT INTO tb1 VALUES (id = 33, name = 'Malik Lorenz', email = 'malik@mail.com');"
+    query := "INSERT INTO tb3 VALUES (id = 24, name = 'Malik Lorenz', email = 'malik@mail.com');"
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)
@@ -89,7 +89,7 @@ func main (){
     }
 
 
-    err = entries.AddIndex(tb2, "id")
+    err = entries.AddIndex(tb1, "id")
     if err != nil {
         fmt.Println(err)
         return
@@ -101,7 +101,7 @@ func main (){
     }
     fmt.Println("\n\n\n\n\n", tb4)
 
-    query = "SELECT * FROM tb1 WHERE id = 24;" 
+    query = "SELECT * FROM tb3;" 
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)
@@ -117,7 +117,7 @@ func main (){
     }
     types.DisplayByteSlice(vals, tb1.Columns, maxLengths)
 
-    query = "SELECT * FROM tb3 JOIN tb1 ON id = tb1.id LIMIT 10;"
+    query = "SELECT * FROM tb3 JOIN tb1 ON tb3.id = tb1.id LIMIT 10;"
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)

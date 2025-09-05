@@ -18,7 +18,7 @@ type joinCompareObj struct {
 
 
 
-func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj types.Join_t) (values [][][]byte, columns []types.Column_t, maxLengths []int, err error){
+func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj types.Join_t) (values [][][]byte, columns []types.Column_t, maxLengths types.MaxLengths_t, err error){
 		start_tb := db.Tables[i_start_tb]
 		for _, col := range start_tb.Columns {
 				col.Name = start_tb.Name + "." + col.Name
@@ -28,6 +28,10 @@ func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj
 		if err != nil {
 				return [][][]byte{}, []types.Column_t{}, []int{}, err
 		}
+		fmt.Println("Original values:")
+		if len(values) == 0 {
+				return nil, nil, nil, fmt.Errorf("Empty set in table %s", start_tb.Name)
+		}
 
 		// perhabs this is an issue with the ordering of this, since hash-maps do not garantee to keep order
 		for right_tb_name, join := range joinObj {
@@ -36,7 +40,7 @@ func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj
 				}
 				switch join.How {
 						case types.INNER:
-								values, columns, maxLengths, err = InnerJoin(db, i_start_tb, columns, right_tb_name, join)
+								values, columns, maxLengths, err = InnerJoin(db, i_start_tb, columns, right_tb_name, maxLengths, join)
 								if err != nil {
 										return [][][]byte{}, []types.Column_t{}, []int{}, fmt.Errorf("Could not join columns: %s", err)
 								}
@@ -48,6 +52,13 @@ func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj
 						case types.RIGHT_OUTER:
 				}
 		}
+		fmt.Println(values)
+		fmt.Println(columns)
+		fmt.Println(maxLengths)
+		if len(maxLengths) == 0 {
+				return nil, nil, nil, fmt.Errorf("Empty maxLengths returned from join")
+		}
+		types.DisplayByteSlice(values, columns, maxLengths)
 		return values, columns, maxLengths, nil
 }
 
@@ -65,17 +76,17 @@ func GetTableIndex (db * types.Database_t, s string) (int, error) {
 
 
 
-func SELECT_ALL (table *types.Table_t) (values [][][]byte, maxLenghts []int, err error){
-		colIndices := []int{0}
-		for i_col := range table.Columns {
-				colIndices = append(colIndices, i_col)
+func SELECT_ALL (table *types.Table_t) (values [][][]byte, maxLenghts types.MaxLengths_t, err error){
+		fmt.Println("every colllll")
+		colIndices := []int{}
+		for i := range table.Columns {
+				colIndices = append(colIndices, i)
 		}
-    values, maxLenghts, err = search.IterateOverEntriesInFile(table, colIndices, 0)
+    values, maxLenghts, err = search.IterateOverEntriesInFile(table, colIndices, 10000)
     if err != nil {
         return [][][]byte{}, []int{}, err
     }
     return values, maxLenghts, nil
-		
 }
 
 
