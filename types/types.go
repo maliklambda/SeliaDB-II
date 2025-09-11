@@ -53,6 +53,8 @@ type Column_t struct {
 }
 
 
+type Values_t [][][]byte
+
 type MaxLengths_t []int
 
 
@@ -501,6 +503,21 @@ func IsColIndexed (tb * Table_t, colName string) (bool, int, error) {
 }
 
 
+// this returns also the index of the 
+func IsColIndexedSlice (tbs * []Table_t, colName string) (isIndexed bool, i_tb int, i_col int, err error) {
+		var table_names []string // tables_string for err-msg
+		for i, tb := range *tbs {
+				left_join_col_name := Strip_table_name(colName, tb.Name)
+				isIndexed, i_col, err = IsColIndexed(&tb, left_join_col_name)
+				if isIndexed {
+						return true, i, i_col, nil
+				}
+				table_names = append(table_names, tb.Name)
+		}
+		return false, -1, -1, fmt.Errorf("Column %s does not exist in tables %s.", colName, table_names)
+}
+
+
 func BytesToInt32 (b []byte) (any, error) {
 		var res int32
 			err := binary.Read(bytes.NewReader(b), binary.NativeEndian, &res)
@@ -516,5 +533,15 @@ func BytesToVarChar (bytes []byte) (any, error) {
 		return string(bytes), nil
 }
 
+
+
+// remove tablename from right_column
+// "tb_name.col_name" becomes "col_name"
+func Strip_table_name (colName, tableName string) string {
+		if strings.HasPrefix(colName, tableName + ".") {
+				return colName[len(tableName) + 1:]
+		}
+		return colName
+}
 
 

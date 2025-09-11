@@ -9,7 +9,7 @@ import (
 
 )
 
-func DisplayByteSlice (bytes [][][]byte, cols []Column_t, maxLengths MaxLengths_t) {
+func DisplayByteSlice (bytes Values_t, cols []Column_t, maxLengths MaxLengths_t) {
     fmt.Println(cols)
     if len (bytes) == 0 {
         fmt.Println("Empty set")

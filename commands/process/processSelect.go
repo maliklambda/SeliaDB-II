@@ -14,10 +14,10 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) {
+func SELECT (query string, db *types.Database_t) (values [][][]byte, columns []types.Column_t, maxLenghts types.MaxLengths_t, err error) {
     sourceTb, selectedCols, joinTables, conditions, limit, err := parser.ParseSelect(query, db)
     if err != nil {
-        return [][][]byte{}, err
+        return nil, nil, nil, err
     }
 
     fmt.Println("selected cols",selectedCols)
@@ -28,7 +28,7 @@ func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) 
 
     values, cols, maxLenghts, err := processSelectQuery(db, sourceTb, selectedCols, joinTables, conditions, limit)
     if err != nil {
-        return [][][]byte{}, err
+        return nil, nil, nil, err
     }
     fmt.Println(cols)
 
@@ -36,8 +36,7 @@ func SELECT (query string, db *types.Database_t) (values [][][]byte, err error) 
     fmt.Println(selectedCols)
     fmt.Println(joinTables)
     fmt.Println(maxLenghts)
-    // types.DisplayByteSlice(values, cols, maxLenghts)
-    return [][][]byte{}, err
+		return values, cols, maxLenghts, nil
 }
 
 
@@ -62,7 +61,7 @@ func processSelectQuery (
         return [][][]byte{}, nil, []int{}, err
     }
 
-    if len(joinTables) > 0 {
+    if len(joinTables) > 0 && len(conditions) == 0 {
 				fmt.Println("We have a join :)", joinTables)
 				// fill columns
 				for _, i_col := range colIndices {
@@ -74,7 +73,8 @@ func processSelectQuery (
 				return joins.JOIN(db, uint(tbIndex), selectedColumns, joinTables)
     }
 
-    if len(conditions) == 1 {
+		columns = search.FilterColumns(currentTb.Columns, colIndices)
+    if len(conditions) == 1 && len(joinTables) == 0 {
         fmt.Println("checking if this col is indexed:", conditions[0].ColName)
 				fmt.Println(conditions[0])
         if isIndexed, iCol, err := types.IsColIndexed(currentTb, conditions[0].ColName); err != nil {
@@ -93,8 +93,7 @@ func processSelectQuery (
 						if err != nil {
 								return [][][]byte{}, nil, []int{}, err
 						}
-						newCols := search.FilterColumns(currentTb.Columns, colIndices)
-						maxLenghts = types.GetMaxLengthFromBytes(val, newCols)
+						maxLenghts = types.GetMaxLengthFromBytes(val, columns)
             return [][][]byte{val}, columns, maxLenghts, nil
 				}
         vals, maxLenghts, err := search.FindEntryWhereCondition(currentTb, colIndices, uint64(limit), conditions...)

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/MalikL2005/SeliaDB-II/btree"
 	"github.com/MalikL2005/SeliaDB-II/entries"
@@ -13,39 +12,40 @@ import (
 
 
 func InnerJoin (db *types.Database_t, 
-		left_tb_index uint,
+		tables *[]types.Table_t,
 		columns []types.Column_t,
+		left_values types.Values_t,
 		right_tb_name string,
 		prev_max_lengths types.MaxLengths_t,
-		join struct{Left string; Right string; How types.JoinType}) (values [][][]byte, cols []types.Column_t, maxLengths types.MaxLengths_t, err error) {
+		join struct{Left string; Right string; How types.JoinType}) (values types.Values_t, tbs *[]types.Table_t, cols []types.Column_t, maxLengths types.MaxLengths_t, err error) {
+
+		_, left_tb_index, i_left_join_col, err := types.IsColIndexedSlice(tables, join.Left)
+		if err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Error with left col-index: %s", err)
+		}
+
 		left_tb := db.Tables[left_tb_index]
 		fmt.Println("Joining", left_tb.Name, "and", right_tb_name, "on", join.Left, "and", join.Right)
 
 		i_right_tb, err := GetTableIndex(db, right_tb_name)
 		if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, fmt.Errorf("Error getting table index: %s", err)
 		}
 		right_tb := db.Tables[i_right_tb]
 		
-		right_join_col_name := strip_table_name(join.Right, right_tb_name)
+		right_join_col_name := types.Strip_table_name(join.Right, right_tb_name)
 		fmt.Println("right col name:", right_join_col_name, " - right tb name:", right_tb_name)
 		fmt.Println(right_tb.Indeces)
 		fmt.Println(right_tb.Columns)
 		is_right_indexed, i_right_join_col, err := types.IsColIndexed(right_tb, right_join_col_name)
 		if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, fmt.Errorf("Error with right col-index: %s", err)
 		}
 
-		left_join_col_name := strip_table_name(join.Left, left_tb.Name)
-		fmt.Println("left col name:", right_join_col_name)
-		_, i_left_join_col, err := types.IsColIndexed(left_tb, left_join_col_name)
-		if err != nil {
-				return nil, nil, nil, err
-		}
 
 		// if not the same type, join is not possible
 		if right_tb.Columns[i_right_join_col].Type != left_tb.Columns[i_left_join_col].Type {
-				return nil, nil, nil, fmt.Errorf("Missmatch of join-types: %s (left) -> %s and %s (right) -> %s", 
+				return nil, nil, nil, nil, fmt.Errorf("Missmatch of join-types: %s (left) -> %s and %s (right) -> %s", 
 						left_tb.Columns[i_left_join_col].Name, left_tb.Columns[i_left_join_col].Type.String(), 
 						right_join_col_name, right_tb.Columns[i_right_join_col].Type.String())
 		}
@@ -56,12 +56,6 @@ func InnerJoin (db *types.Database_t,
 				columns = append(columns, col)
 		}
 		
-		// fill values
-		values, maxLengths, err = SELECT_ALL(left_tb)
-		if err != nil {
-				return nil, nil, nil, fmt.Errorf("Failed select all: %s", err)
-		}
-	
 		
 		fmt.Println(is_right_indexed)		
 		if is_right_indexed {
@@ -69,23 +63,24 @@ func InnerJoin (db *types.Database_t,
 				fmt.Println("Looking up index of", right_tb.Columns[i_right_join_col].Name)
 				root := btree.UnsafePAnyToPNode_t(right_tb.Indeces[i_right_join_col].Root)
 				btree.Traverse(root, root)
-				values, maxLengths, err = InnerJoinIndexed(values, columns, 0, root, right_tb, uint(i_right_join_col), prev_max_lengths)
+				values, maxLengths, err = InnerJoinIndexed(left_values, columns, 0, root, right_tb, uint(i_right_join_col), prev_max_lengths)
 				if err != nil {
-						return nil, nil, nil, fmt.Errorf("InnerJoinIndexed failed: %s", err)
+						return nil, nil, nil, nil, fmt.Errorf("InnerJoinIndexed failed: %s", err)
 				}
 		} else {
 				fmt.Println("Awwwwww no index for this join: n² :(")
-				return nil, nil, nil, fmt.Errorf("Inner join for non indexed column is not fully implemented yet")
+				return nil, nil, nil, nil, fmt.Errorf("Inner join for non-indexed column is not implemented yet")
 		}
 		fmt.Println(columns)
-		return values, columns, maxLengths, nil
+		*tables = append(*tables, *left_tb)
+		return values, tables, columns, maxLengths, nil
 }
 
 
 
-func InnerJoinIndexed (left_values [][][]byte, left_cols []types.Column_t, left_join_col_index uint, 
+func InnerJoinIndexed (left_values types.Values_t, left_cols []types.Column_t, left_join_col_index uint, 
 		root_right *btree.Node_t,
-		right_tb *types.Table_t, right_join_col_index uint, maxLengths_left types.MaxLengths_t) (values [][][]byte, maxLengths types.MaxLengths_t, err error) {
+		right_tb *types.Table_t, right_join_col_index uint, maxLengths_left types.MaxLengths_t) (values types.Values_t, maxLengths types.MaxLengths_t, err error) {
 		tp := left_cols[left_join_col_index].Type
 		var right_val [][]byte
 
@@ -104,6 +99,8 @@ func InnerJoinIndexed (left_values [][][]byte, left_cols []types.Column_t, left_
 				if err != nil {
 						return nil, nil, fmt.Errorf("Failed to look up key %s: %s", lookup_val, err)
 				}
+				fmt.Println(right_tb)
+				fmt.Println("right index", right_index)
 				
 				if right_index != nil {
 						fmt.Println("Reading entry @", right_index)
@@ -112,8 +109,12 @@ func InnerJoinIndexed (left_values [][][]byte, left_cols []types.Column_t, left_
 								return nil, nil, fmt.Errorf("Failed to read entry: %s", err)
 						}
 						right_max_lengths = types.UpdateLongestDisplay(right_max_lengths, right_val, right_tb.Columns)
-						
+						fmt.Println(left_val)
+						fmt.Println(right_val)
+						fmt.Println("righttb:", right_tb)
 						values = append(values, append(left_val, right_val...))
+						fmt.Println(values)
+						fmt.Println(left_cols)
 				}
 		}
 		// extend maxLengths with right_cols
@@ -248,16 +249,6 @@ func InnerJoinIndexedChained (left, right * types.Table_t, leftValues [][][]byte
     return values, newTb, columns, maxLengths, nil
 }
 
-
-
-// remove tablename from right_column
-// "tb_name.col_name" becomes "col_name"
-func strip_table_name (colName, tableName string) string {
-		if strings.HasPrefix(colName, tableName + ".") {
-				return colName[len(tableName) + 1:]
-		}
-		return colName
-}
 
 
 

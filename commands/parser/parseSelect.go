@@ -71,7 +71,7 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
     if curIndex >= len(query) {
         fmt.Println(query)
         fmt.Println(curIndex)
-        return sourceTable, selectedColumns, joinTables, compareObjs, 0, errors.New("herlllp")
+        return sourceTable, selectedColumns, joinTables, compareObjs, 0, nil
     }
     fmt.Println("after conditions:", query[curIndex:])
 

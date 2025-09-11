@@ -25,11 +25,12 @@ func ParseQuery (query string, db *types.Database_t) (numAffectedColumns uint, e
     command := GetCommandKeyWord(query[:commandIndex])
     switch command {
     case SELECT:
-        _, err = process.SELECT(query[commandIndex:], db)
+				values, columns, maxLengths, err := process.SELECT(query[commandIndex:], db)
         if err != nil {
             return 0, err
         }
         numAffectedColumns = 0
+				types.DisplayByteSlice(values, columns, maxLengths)
     case INSERT:
         err := process.INSERT(query[commandIndex:], db)
         if err != nil {

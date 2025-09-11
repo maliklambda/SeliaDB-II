@@ -43,12 +43,24 @@ func main (){
         return
     }
     
-    tb2, err := entries.ReadTableFromFile(tb1.MetaData.FilePath)
-    if err != nil {
+    // tb2, err := entries.ReadTableFromFile(tb1.MetaData.FilePath)
+    // if err != nil {
+    //     fmt.Println(err)
+    //     return
+    // }
+    // fmt.Println(tb2)
+    tb2 := &types.Table_t {
+        Name: "tb2",
+        NumOfColumns: 2,
+        Columns: []types.Column_t{col1, col3},
+        Indeces: []types.Index_t{},
+        MetaData: types.TableMetaData_t{FilePath: "out/tb2.tb"},
+    }
+    if err = entries.WriteTableToFile(tb2); err != nil {
         fmt.Println(err)
         return
     }
-    fmt.Println(tb2)
+    
 
     tb3 := &types.Table_t {
         Name: "tb3",
@@ -65,7 +77,7 @@ func main (){
 
     db1 := &types.Database_t{
         Name: "db1",
-        Tables: []*types.Table_t{tb1, tb3},
+        Tables: []*types.Table_t{tb1, tb2, tb3},
         NumOfTables: 2,
     }
 
@@ -81,7 +93,13 @@ func main (){
     }
     types.DisplayByteSlice(vals, tb1.Columns, maxLengths)
 
-    query := "INSERT INTO tb3 VALUES (id = 24, name = 'Malik Lorenz', email = 'malik@mail.com');"
+    query := "INSERT INTO tb3 VALUES (id = 25, name = 'Malik Lorenz', email = 'malik@mail.com');"
+    err = commands.CommandWrapper(query, db1)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    query = "INSERT INTO tb2 VALUES (id = 25, name = 'Other Malik', email = 'malik_20234204@mail.com');"
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)
@@ -94,12 +112,17 @@ func main (){
         fmt.Println(err)
         return
     }
-    tb4, err := entries.ReadTableFromFile(tb1.MetaData.FilePath)
+    err = entries.AddIndex(tb2, "id")
     if err != nil {
         fmt.Println(err)
         return
     }
-    fmt.Println("\n\n\n\n\n", tb4)
+
+    err = entries.AddIndex(tb3, "id")
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
 
     query = "SELECT * FROM tb3;" 
     err = commands.CommandWrapper(query, db1)
@@ -117,12 +140,29 @@ func main (){
     }
     types.DisplayByteSlice(vals, tb1.Columns, maxLengths)
 
-    query = "SELECT * FROM tb3 JOIN tb1 ON tb3.id = tb1.id LIMIT 10;"
+    query = "SELECT * FROM tb3 JOIN tb1 ON tb3.id = tb1.id JOIN tb2 ON tb1.id = tb2.id LIMIT 10;"
+    err = commands.CommandWrapper(query, db1)
+    if err != nil {
+        fmt.Println(err)
+    }
+		fmt.Println(tb1)
+		return
+
+    // query = "SELECT * FROM tb3 WHERE name = 'Malik Lorenz';"
+    // err = commands.CommandWrapper(query, db1)
+    // if err != nil {
+    //     fmt.Println(err)
+    //     return
+    // }
+
+    query = "SELECT * FROM tb3;"
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)
         return
     }
+
+
 
 		return
 
