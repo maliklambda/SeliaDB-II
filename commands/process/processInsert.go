@@ -1,7 +1,6 @@
 package process
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -39,7 +38,7 @@ func processInsertQuery(tb *types.Table_t, colValues map[string] string) error {
     for _, col := range tb.Columns {
         val, ok := colValues[col.Name]
         if !ok {
-            return errors.New(fmt.Sprintf("Missing specification for column \"%s\"", col.Name))
+            return fmt.Errorf("Missing specification for column \"%s\"", col.Name)
         }
         switch col.Type {
             case types.VARCHAR:
@@ -68,7 +67,7 @@ func processInsertQuery(tb *types.Table_t, colValues map[string] string) error {
 
     fmt.Println(values)
     if len(values) != int(tb.NumOfColumns) {
-        return errors.New(fmt.Sprintf("Incorrect num of values: Expected %d, got: %d", tb.NumOfColumns, len(values)))
+        return fmt.Errorf("Incorrect num of values: Expected %d, got: %d", tb.NumOfColumns, len(values))
     }
 
     // btree entries are added in AddEntry()

@@ -63,6 +63,15 @@ type Index_t struct {
     Root * any // * btree.Node_t
 }
 
+
+type SearchedColumns_t struct {
+		Searched_cols []string
+		Aliases Alias_t
+}
+
+type Alias_t map[string]string
+
+
 var tableDataBuffer int = 50
 func GetTableDataBuffer () int{
     return tableDataBuffer

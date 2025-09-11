@@ -31,6 +31,12 @@ func main (){
         Size: 100,
     }
 
+    col4 := types.Column_t {
+        Name: "job",
+        Type: types.VARCHAR,
+        Size: 100,
+    }
+
     tb1 := &types.Table_t {
         Name: "tb1",
         NumOfColumns: 3,
@@ -74,10 +80,21 @@ func main (){
         return
     }
 
+    tb4 := &types.Table_t {
+        Name: "tb4",
+        NumOfColumns: 2,
+        Columns: []types.Column_t{col1, col4},
+        Indeces: []types.Index_t{},
+        MetaData: types.TableMetaData_t{FilePath: "out/tb4.tb"},
+    }
+    if err = entries.WriteTableToFile(tb4); err != nil {
+        fmt.Println(err)
+        return
+    }
 
     db1 := &types.Database_t{
         Name: "db1",
-        Tables: []*types.Table_t{tb1, tb2, tb3},
+        Tables: []*types.Table_t{tb1, tb2, tb3, tb4},
         NumOfTables: 2,
     }
 
@@ -106,6 +123,12 @@ func main (){
         return
     }
 
+    query = "INSERT INTO tb4 VALUES (id = 25, job = 'Software Engineer @Deutsche Telekom');"
+    err = commands.CommandWrapper(query, db1)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
 
     err = entries.AddIndex(tb1, "id")
     if err != nil {
@@ -117,14 +140,18 @@ func main (){
         fmt.Println(err)
         return
     }
-
+    err = entries.AddIndex(tb4, "id")
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
     err = entries.AddIndex(tb3, "id")
     if err != nil {
         fmt.Println(err)
         return
     }
 
-    query = "SELECT * FROM tb3;" 
+    query = "SELECT name AS delcos, id AS kennzeichner FROM tb3;" 
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)
@@ -140,12 +167,11 @@ func main (){
     }
     types.DisplayByteSlice(vals, tb1.Columns, maxLengths)
 
-    query = "SELECT * FROM tb3 JOIN tb1 ON tb3.id = tb1.id JOIN tb2 ON tb1.id = tb2.id LIMIT 10;"
+    query = "SELECT id FROM tb3 JOIN tb1 ON tb3.id = tb1.id JOIN tb2 ON tb1.id = tb2.id JOIN tb4 ON id = id LIMIT 10;"
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)
     }
-		fmt.Println(tb1)
 		return
 
     // query = "SELECT * FROM tb3 WHERE name = 'Malik Lorenz';"

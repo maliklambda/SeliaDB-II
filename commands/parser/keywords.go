@@ -12,4 +12,6 @@ const (
     AND = "AND"
     WHERE = "WHERE"
     LIMIT = "LIMIT"
+		AS = "AS"
+		COMMA = ","
 )

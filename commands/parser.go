@@ -25,12 +25,13 @@ func ParseQuery (query string, db *types.Database_t) (numAffectedColumns uint, e
     command := GetCommandKeyWord(query[:commandIndex])
     switch command {
     case SELECT:
-				values, columns, maxLengths, err := process.SELECT(query[commandIndex:], db)
+				values, columns, aliases, maxLengths, err := process.SELECT(query[commandIndex:], db)
         if err != nil {
             return 0, err
         }
         numAffectedColumns = 0
-				types.DisplayByteSlice(values, columns, maxLengths)
+				types.DisplayAliasedByteSlice(values, columns, aliases, maxLengths)
+
     case INSERT:
         err := process.INSERT(query[commandIndex:], db)
         if err != nil {
@@ -39,7 +40,7 @@ func ParseQuery (query string, db *types.Database_t) (numAffectedColumns uint, e
         numAffectedColumns = 1
     case DELETE:
     case UPDATE:
-    case NONE: return 0, errors.New(fmt.Sprintf("Unknown command \"%s\". Type help or \\h for more infos.", query))
+    case NONE: return 0, fmt.Errorf("Unknown command \"%s\". Type help or \\h for more infos.", query)
     }
 
     return numAffectedColumns, nil

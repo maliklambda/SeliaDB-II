@@ -10,16 +10,16 @@ import (
 	"github.com/MalikL2005/SeliaDB-II/types"
 )
 
-func ParseSelect (query string, db *types.Database_t) (sourceTable string, selectedColumns []string, joinTables types.Join_t, conditions []types.CompareObj, limit uint64, err error) {
+func ParseSelect (query string, db *types.Database_t) (sourceTable string, selectedColumns types.SearchedColumns_t, joinTables types.Join_t, conditions []types.CompareObj, limit uint64, err error) {
     fmt.Println("start:", query)
     if query[0:len(SPACE)] != SPACE {
-        return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New("Expected SELECT and then space.")
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New("Expected SELECT and then space.")
     }
     // columns
     var curIndex int
     selectedColumns, curIndex, err = findSearchedColumns(query)
     if err != nil {
-        return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #01", err))
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #01", err))
     } 
     fmt.Println("searched cols:", selectedColumns)
     fmt.Println("after searched cols:", query[curIndex:])
@@ -28,13 +28,13 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
     // table
     sourceTable, curIndex, err = findSourceTable(query, curIndex)
     if err != nil {
-        return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #02", err))
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #02", err))
     }
     fmt.Println("source tb:", sourceTable)
 
     i, err := getTableIndex(sourceTable, db)
     if err != nil {
-        return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #03", err))
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #03", err))
     }
     fmt.Println("Found index:", i)
 
@@ -48,7 +48,7 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
     saveIndex := curIndex
     joinTables, curIndex, err = getJoinTables(query)
     if err != nil {
-        return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #04", err))
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #04", err))
     }
     fmt.Println("\n\n\n\nJoin tables:", joinTables)
     if curIndex == 0 {
@@ -63,7 +63,7 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
     // where conditions
     compareObjs, plusIndex, err := getWhereConditions(query[curIndex:])
     if err != nil {
-        return "", []string{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #05", err))
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #05", err))
     }
     curIndex += plusIndex
     fmt.Println(compareObjs)
@@ -91,12 +91,24 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
 
 
 
-func findSearchedColumns (query string) (searchedColumns []string, curIndex int, err error) {
+func findSearchedColumns (query string) (searchedColumns types.SearchedColumns_t, curIndex int, err error) {
+		searchedColumns.Aliases = make(types.Alias_t)
     curIndex = strings.Index(query, "FROM"+SPACE)
     if curIndex < 0 {
-        return []string{}, -1, errors.New("No \"FROM \" found.")
+        return types.SearchedColumns_t{}, -1, errors.New("No \"FROM \" found.")
     }
-    return strings.Split(strings.ReplaceAll(query[:curIndex], SPACE, ""), ","), curIndex, nil
+		// check for aliases
+		split_on_comma := strings.Split(query[:curIndex], COMMA+SPACE)
+		fmt.Println(len(split_on_comma))
+		for _, s := range split_on_comma {
+				split_on_as := strings.Split(s, SPACE+AS+SPACE)
+				if len(split_on_as) == 2 {
+						searchedColumns.Aliases[strings.ReplaceAll(split_on_as[0], SPACE, "")] = strings.ReplaceAll(split_on_as[1], SPACE, "")
+				}
+				searchedColumns.Searched_cols = append(searchedColumns.Searched_cols, strings.ReplaceAll(split_on_as[0], SPACE, ""))
+		}
+
+		return searchedColumns, curIndex, nil
 }
 
 
@@ -122,7 +134,7 @@ func getTableIndex (tableName string, db * types.Database_t) (int, error){
             return i, nil
         }
     }
-    return -1, errors.New(fmt.Sprintf("Table %s does not exist in database %s.", tableName, db.Name))
+    return -1, fmt.Errorf("Table %s does not exist in database %s.", tableName, db.Name)
 }
 
 

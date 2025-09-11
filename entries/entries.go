@@ -53,8 +53,7 @@ func AddEntry (tb *types.Table_t, values ... any) error {
     // write entry to file
     err = AppendEntryToFile(tb, entry)
     if err != nil {
-        fmt.Println("Error writing entry to file", err)
-        return err
+				return fmt.Errorf("Error writing entry to file: %s", err)
     }
     // btree indices
 

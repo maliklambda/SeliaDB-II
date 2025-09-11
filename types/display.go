@@ -6,7 +6,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-
 )
 
 func DisplayByteSlice (bytes Values_t, cols []Column_t, maxLengths MaxLengths_t) {
@@ -100,3 +99,46 @@ func GetMaxLengthFromBytes (bytes [][]byte, cols []Column_t) (maxLengths MaxLeng
 
 
 
+func DisplayAliasedByteSlice (bytes Values_t, cols []Column_t, aliases Alias_t, maxLengths MaxLengths_t) {
+		fmt.Println("aliases:", aliases)
+    fmt.Println(cols)
+    if len (bytes) == 0 {
+        fmt.Println("Empty set")
+        return 
+    }
+    rowSeparator := "+"
+    for i, col := range cols {
+				if alias, has_alias := aliases[col.Name]; has_alias {
+						fmt.Printf("%s has alias: %s\n\n", col.Name, alias)
+						maxLengths[i] = max(len(alias), maxLengths[i])
+						cols[i].Name = alias
+				} else {
+						maxLengths[i] = max(len(col.Name), maxLengths[i])
+				}
+				rowSeparator += strings.Repeat("-", maxLengths[i]+2) + "+"
+    }
+    rowSeparator += "\n"
+    fmt.Print(rowSeparator)
+    for i, col := range cols {
+        fmt.Print("| ")
+        spaces := strings.Repeat(" ", maxLengths[i]-len(col.Name)+1)
+        fmt.Print(col.Name, spaces)
+    }
+    fmt.Println("|")
+    fmt.Print(rowSeparator)
+    for _, entry := range bytes {
+        for i, value := range entry {
+            fmt.Print("|")
+            v, err := ByteSliceToValue(value, cols[i].Type)
+            if err != nil {
+                fmt.Print(strings.Repeat(" ", maxLengths[i]))
+                continue
+            }
+            fmt.Print(" ", v)
+            fmt.Print(strings.Repeat(" ", (maxLengths[i] - GetDisplayLength(v, cols[i].Type))+1))
+        }
+        fmt.Println("|")
+    }
+    fmt.Print(rowSeparator)
+    fmt.Println("Result contains", len(bytes), "rows")
+}
