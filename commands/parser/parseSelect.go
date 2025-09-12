@@ -59,7 +59,7 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
         curIndex += len(SPACE)
     }
     fmt.Println("after joinTables:", query[curIndex:])
-    fmt.Println(query)
+		fmt.Println(query[curIndex:])
     // where conditions
     compareObjs, plusIndex, err := getWhereConditions(query[curIndex:])
     if err != nil {
@@ -71,15 +71,16 @@ func ParseSelect (query string, db *types.Database_t) (sourceTable string, selec
     if curIndex >= len(query) {
         fmt.Println(query)
         fmt.Println(curIndex)
-        return sourceTable, selectedColumns, joinTables, compareObjs, 0, nil
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #05", err))
     }
+		fmt.Println(compareObjs)
     fmt.Println("after conditions:", query[curIndex:])
 
     // limit
     fmt.Println("\n\n\n", query[curIndex:])
     limit, err = getLimit(query[curIndex:])
     if err != nil {
-        return sourceTable, selectedColumns, joinTables, compareObjs, 0, err
+        return "", types.SearchedColumns_t{}, types.Join_t{}, []types.CompareObj{}, 0, errors.New(fmt.Sprint("ParseSelect #05", err))
     }
     fmt.Println("after limit:", query[curIndex:])
     fmt.Println(limit)
@@ -130,7 +131,7 @@ func findSourceTable(query string, fromIndex int) (sourceTableName string, curIn
 func getTableIndex (tableName string, db * types.Database_t) (int, error){
     for i, table := range db.Tables {
     fmt.Println("comparing:", strings.ToUpper(table.Name), "and" ,strings.ToUpper(tableName))
-        if strings.ToUpper(table.Name) == strings.ToUpper(tableName){
+				if strings.EqualFold(table.Name, tableName){
             return i, nil
         }
     }
@@ -188,6 +189,7 @@ func getJoinTables (query string) (joinTables types.Join_t, plusIndex int, err e
             fmt.Println("current query:", query)
             // rightJoinColumn = strings.TrimLeft(query[nextEq+1:], " ")
             rightJoinColumn = query
+            plusIndex += len(query)
         }
         fmt.Println("ljc",leftJoinColumn)
         fmt.Println("rjc", rightJoinColumn)

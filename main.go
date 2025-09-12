@@ -167,7 +167,7 @@ func main (){
     }
     types.DisplayByteSlice(vals, tb1.Columns, maxLengths)
 
-    query = "SELECT id FROM tb3 JOIN tb1 ON tb3.id = tb1.id JOIN tb2 ON tb1.id = tb2.id JOIN tb4 ON id = id LIMIT 10;"
+    query = "SELECT * FROM tb3 JOIN tb1 ON id = id LIMIT 15;"
     err = commands.CommandWrapper(query, db1)
     if err != nil {
         fmt.Println(err)

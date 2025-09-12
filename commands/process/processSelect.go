@@ -62,7 +62,7 @@ func processSelectQuery (
         return types.Values_t{}, nil, []int{}, err
     }
 
-    if len(joinTables) > 0 && len(conditions) == 0 {
+    if len(joinTables) > 0 {
 				fmt.Println("We have a join :)", joinTables)
 				// fill columns
 				for _, i_col := range colIndices {
@@ -71,7 +71,7 @@ func processSelectQuery (
 				// perhaps this should not return here and should be filtered before
 				// alternatively, they can be filtered in JOIN (but this might be a little too much)
 				// Yet this would enable filtering on every JOIN (which would be very cool)
-				return joins.JOIN(db, uint(tbIndex), selectedColumns.Searched_cols, joinTables)
+				return joins.JOIN(db, uint(tbIndex), selectedColumns.Searched_cols, joinTables, conditions, limit)
     }
 
 		columns = search.FilterColumns(currentTb.Columns, colIndices)

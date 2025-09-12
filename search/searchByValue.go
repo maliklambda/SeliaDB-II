@@ -160,3 +160,52 @@ func FilterColumns (cols []types.Column_t, selectedColumnsIndeces[]int) []types.
     }
     return newCols
 }
+
+
+
+func FilterEntriesByCondition(base_values types.Values_t, columns *[]types.Column_t, limit uint64, conditions ... types.CompareObj)(vals types.Values_t, maxLenghts types.MaxLengths_t, err error) {
+		fmt.Println(columns)
+    indices := make([]int, len(conditions))
+    for i, cmp := range conditions {
+				for i_col, col := range *columns {
+						if col.Name == cmp.ColName { // add aliases here too
+								indices[i] = i_col
+								fmt.Printf("%s = %d\n", col.Name, i_col)
+								continue
+						}
+				}
+    }
+
+    if limit < 1 {
+        limit = 1
+    }
+
+		// fill max lengths
+		for range *columns {
+				maxLenghts = append(maxLenghts, 0)
+		}
+		
+		for _, val := range base_values {
+				if uint64(len(vals)) >= limit {
+						break
+				}
+        for i, cmp := range conditions {
+            // check if entry matches condition
+            compareResult, err := types.CompareValues((*columns)[indices[i]].Type, val[indices[i]], cmp.Value)
+            if err != nil {
+								fmt.Println((*columns)[indices[i]].Type, val[indices[i]], cmp.Value)
+                return types.Values_t{}, []int{}, err
+            }
+            if types.CompareValuesWithOperator(compareResult, cmp.CmpOperator) {
+								vals = append(vals, val)
+								// update max entries
+								maxLenghts = types.UpdateLongestDisplay(maxLenghts, val, *columns)
+            }
+				}
+		}
+		return vals, maxLenghts, nil
+}
+
+
+
+

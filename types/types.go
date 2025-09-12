@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unsafe"
 	"strconv"
+	"reflect"
 )
 
 type Database_t struct {
@@ -170,7 +171,17 @@ func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
     case INT32:
         v2, ok := val2.(int32)
         if !ok {
-            return 0, errors.New("Type does not match value")
+						// check if string of val2 is numeric -> cast to i32
+						if v2_2, ok := val2.(string); ok{
+								v2_i, err := strconv.Atoi(v2_2)
+								if err != nil {
+										fmt.Println("Conversion error:", err)
+										return 0, fmt.Errorf("Type should be int32. But val2 was a string. strconv_iota failed.")
+								}
+								v2 = int32(v2_i)
+						} else {
+								return 0, fmt.Errorf("Type of val2 does not match value. Expected type int32, got value of type %s.", reflect.TypeOf(val2))
+						}
         }
         v1 := int32(binary.LittleEndian.Uint32(val1))
         fmt.Println("Comparing", v2, v1)
@@ -184,7 +195,7 @@ func CompareValues (tp Type_t, val1 []byte, val2 any) (int, error) {
     case VARCHAR:
         v2, ok := val2.(string)
         if !ok {
-            return 0, errors.New("Type does not match value")
+            return 0, fmt.Errorf("Type of val2 does not match value. Expected type varchar, got value of type %s.", reflect.TypeOf(val2))
         }
         fmt.Println(v2)
         v1 := string(val1) // handle conversion error: missmatched types

@@ -19,7 +19,7 @@ type joinCompareObj struct {
 
 
 // for chained joins: right column must be the latter column in query
-func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj types.Join_t) (values types.Values_t, columns []types.Column_t, maxLengths types.MaxLengths_t, err error){
+func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj types.Join_t, conditions []types.CompareObj, limit uint64) (values types.Values_t, columns []types.Column_t, maxLengths types.MaxLengths_t, err error){
 		start_tb := db.Tables[i_start_tb]
 		tables := &[]types.Table_t{*start_tb}
 		for _, col := range start_tb.Columns {
@@ -52,12 +52,23 @@ func JOIN (db *types.Database_t, i_start_tb uint, selectedCols []string, joinObj
 						case types.RIGHT_OUTER:
 				}
 		}
-		fmt.Println(values)
-		fmt.Println(columns)
-		fmt.Println(maxLengths)
 		if len(maxLengths) == 0 {
 				return nil, nil, nil, fmt.Errorf("Empty maxLengths returned from join")
 		}
+
+		if len(conditions) > 0 {
+				fmt.Println(conditions)
+				values, maxLengths, err = search.FilterEntriesByCondition(values, &columns, uint64(limit), conditions...)
+        if err != nil {
+						return types.Values_t{}, nil, []int{}, err
+        }
+		}
+		if len(columns) != len(maxLengths){
+				fmt.Println(columns)
+				fmt.Println(maxLengths)
+				panic(123131231324)
+		}
+
 		return values, columns, maxLengths, nil
 }
 
